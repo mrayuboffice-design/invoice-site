@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GST + Export Invoice / Proforma Generator</title>
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- jsPDF + AutoTable -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <h1>GST + Export Invoice / Proforma Generator</h1>
+    <div class="actions">
+      <button id="addRowBtn">+ Add Item</button>
+      <button id="downloadPdfBtn" class="primary">⬇ Download PDF</button>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Branding -->
+    <section class="card">
+      <h2>Branding</h2>
+      <div class="grid">
+        <div>
+          <label>Upload Logo (PNG/JPG)</label>
+          <input id="logoInput" type="file" accept="image/png,image/jpeg" />
+          <small class="hint">Logo PDF me top-left aa jayega (recommended: PNG, white background)</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- Document -->
+    <section class="card">
+      <h2>Document</h2>
+      <div class="grid">
+        <div>
+          <label>Document Type</label>
+          <select id="docType">
+            <option value="PROFORMA INVOICE">PROFORMA INVOICE</option>
+            <option value="TAX INVOICE">TAX INVOICE</option>
+            <option value="COMMERCIAL INVOICE">COMMERCIAL INVOICE</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Invoice No.</label>
+          <input id="invoiceNo" placeholder="PI-001" />
+        </div>
+
+        <div>
+          <label>Date</label>
+          <input id="invoiceDate" type="date" />
+        </div>
+
+        <div>
+          <label>Currency</label>
+          <input id="currency" placeholder="USD / INR" value="USD" />
+        </div>
+
+        <div>
+          <label>Payment Terms</label>
+          <input id="paymentTerms" placeholder="Advance / LC / Net 30" />
+        </div>
+
+        <div>
+          <label>Incoterms</label>
+          <input id="incoterms" placeholder="FOB / CIF / EXW" />
+        </div>
+
+        <div>
+          <label>Place of Supply (GST)</label>
+          <input id="placeOfSupply" placeholder="State / Country" />
+        </div>
+
+        <div>
+          <label>GST Type</label>
+          <select id="gstType">
+            <option value="IGST">IGST</option>
+            <option value="CGST_SGST">CGST + SGST</option>
+            <option value="NONE">No GST (Export LUT)</option>
+          </select>
+        </div>
+
+        <div>
+          <label>IGST %</label>
+          <input id="igstRate" type="number" step="0.01" value="0" />
+        </div>
+
+        <div>
+          <label>CGST %</label>
+          <input id="cgstRate" type="number" step="0.01" value="0" />
+        </div>
+
+        <div>
+          <label>SGST %</label>
+          <input id="sgstRate" type="number" step="0.01" value="0" />
+        </div>
+
+        <div>
+          <label>Extra Tax (optional)</label>
+          <input id="extraTax" type="number" step="0.01" value="0" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Seller -->
+    <section class="card">
+      <h2>Seller (Your Company)</h2>
+      <div class="grid">
+        <div>
+          <label>Company Name</label>
+          <input id="sellerName" placeholder="Your Company Name" />
+        </div>
+
+        <div>
+          <label>Address</label>
+          <input id="sellerAddress" placeholder="Full Address" />
+        </div>
+
+        <div>
+          <label>GST / VAT</label>
+          <input id="sellerTax" placeholder="GSTIN / VAT No." />
+        </div>
+
+        <div>
+          <label>PAN</label>
+          <input id="sellerPan" placeholder="PAN" />
+        </div>
+
+        <div>
+          <label>IEC (Export Code)</label>
+          <input id="sellerIec" placeholder="IEC" />
+        </div>
+
+        <div>
+          <label>Email / Phone</label>
+          <input id="sellerContact" placeholder="email / phone" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Buyer -->
+    <section class="card">
+      <h2>Buyer</h2>
+      <div class="grid">
+        <div>
+          <label>Buyer Name</label>
+          <input id="buyerName" placeholder="Client / Buyer Name" />
+        </div>
+
+        <div>
+          <label>Buyer Address</label>
+          <input id="buyerAddress" placeholder="Buyer Address" />
+        </div>
+
+        <div>
+          <label>Buyer Country</label>
+          <input id="buyerCountry" placeholder="Country" />
+        </div>
+
+        <div>
+          <label>Buyer Tax ID (GST/VAT)</label>
+          <input id="buyerTax" placeholder="GST/VAT No (if any)" />
+        </div>
+
+        <div>
+          <label>Buyer Email / Phone</label>
+          <input id="buyerContact" placeholder="email / phone" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Export Details -->
+    <section class="card">
+      <h2>Export Details</h2>
+      <div class="grid">
+        <div>
+          <label>Port of Loading</label>
+          <input id="portLoading" placeholder="e.g., Nhava Sheva (JNPT)" />
+        </div>
+
+        <div>
+          <label>Port of Discharge</label>
+          <input id="portDischarge" placeholder="e.g., Jebel Ali" />
+        </div>
+
+        <div>
+          <label>Final Destination</label>
+          <input id="finalDestination" placeholder="City, Country" />
+        </div>
+
+        <div>
+          <label>Country of Origin</label>
+          <input id="countryOrigin" placeholder="India" value="India" />
+        </div>
+
+        <div>
+          <label>Mode of Shipment</label>
+          <select id="shipmentMode">
+            <option value="SEA">SEA</option>
+            <option value="AIR">AIR</option>
+            <option value="ROAD">ROAD</option>
+          </select>
+        </div>
+
+        <div>
+          <label>HS Code (Default)</label>
+          <input id="defaultHs" placeholder="e.g., 6802..." />
+        </div>
+
+        <div>
+          <label>Terms Basis</label>
+          <select id="termsBasis">
+            <option value="FOB">FOB</option>
+            <option value="CIF">CIF</option>
+            <option value="CFR">CFR</option>
+            <option value="EXW">EXW</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Validity</label>
+          <input id="validity" placeholder="e.g., 7 days" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Items -->
+    <section class="card">
+      <h2>Items</h2>
+
+      <div class="tableWrap">
+        <table id="itemsTable">
+          <thead>
+            <tr>
+              <th style="width:35%">Description</th>
+              <th style="width:12%">HSN/HS Code</th>
+              <th style="width:10%">Qty</th>
+              <th style="width:10%">Unit</th>
+              <th style="width:13%">Rate</th>
+              <th style="width:13%">Amount</th>
+              <th style="width:7%"></th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="totals">
+        <div class="totalsRow">
+          <span>Items Subtotal</span>
+          <strong id="itemsSubtotal">0.00</strong>
+        </div>
+
+        <div class="totalsRow">
+          <span>Discount</span>
+          <input id="discount" type="number" step="0.01" value="0" />
+        </div>
+
+        <div class="totalsRow">
+          <span>Taxable Base</span>
+          <strong id="taxableBase">0.00</strong>
+        </div>
+
+        <div class="totalsRow">
+          <span>GST Total</span>
+          <strong id="gstTotal">0.00</strong>
+        </div>
+
+        <div class="totalsRow">
+          <span>Extra Tax</span>
+          <strong id="extraTaxView">0.00</strong>
+        </div>
+
+        <div class="totalsRow grand">
+          <span>Grand Total</span>
+          <strong id="grandTotal">0.00</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- Export Charges -->
+    <section class="card">
+      <h2>Export Charges (FOB/CIF)</h2>
+      <div class="grid">
+        <div>
+          <label>Packing Charges</label>
+          <input id="packingCharges" type="number" step="0.01" value="0" />
+        </div>
+
+        <div>
+          <label>Freight</label>
+          <input id="freightCharges" type="number" step="0.01" value="0" />
+        </div>
+
+        <div>
+          <label>Insurance</label>
+          <input id="insuranceCharges" type="number" step="0.01" value="0" />
+        </div>
+
+        <div>
+          <label>Other Charges</label>
+          <input id="otherCharges" type="number" step="0.01" value="0" />
+        </div>
+
+        <div>
+          <label>Total Export Charges</label>
+          <input id="exportChargesTotal" type="number" step="0.01" value="0" readonly />
+        </div>
+      </div>
+    </section>
+
+    <!-- Bank / Notes -->
+    <section class="card">
+      <h2>Bank / Notes</h2>
+      <div class="grid">
+        <div>
+          <label>Bank Details (SWIFT/IBAN supported)</label>
+          <textarea id="bankDetails" rows="4" placeholder="Bank Name, A/C No, IFSC/SWIFT, IBAN, Branch..."></textarea>
+        </div>
+
+        <div>
+          <label>Notes</label>
+          <textarea id="notes" rows="4" placeholder="Delivery terms, LUT text, validity, etc."></textarea>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <small>Free hosting: GitHub Pages ✅</small>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
