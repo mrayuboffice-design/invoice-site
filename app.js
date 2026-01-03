@@ -194,7 +194,7 @@ function buildPdf(){
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 40;
 
-  // Doc fields
+  // Fields
   const docType = getField("docType") || "PROFORMA INVOICE";
   const invoiceNo = getField("invoiceNo");
   const invoiceDate = getField("invoiceDate");
@@ -204,13 +204,11 @@ function buildPdf(){
   const termsBasis = getField("termsBasis");
   const placeOfSupply = getField("placeOfSupply");
 
-  // GST
   const gstType = getField("gstType");
   const igstRate = getField("igstRate");
   const cgstRate = getField("cgstRate");
   const sgstRate = getField("sgstRate");
 
-  // Seller
   const sellerName = getField("sellerName");
   const sellerAddress = getField("sellerAddress");
   const sellerTax = getField("sellerTax");
@@ -218,14 +216,12 @@ function buildPdf(){
   const sellerIec = getField("sellerIec");
   const sellerContact = getField("sellerContact");
 
-  // Buyer
   const buyerName = getField("buyerName");
   const buyerAddress = getField("buyerAddress");
   const buyerCountry = getField("buyerCountry");
   const buyerTax = getField("buyerTax");
   const buyerContact = getField("buyerContact");
 
-  // Export
   const portLoading = getField("portLoading");
   const portDischarge = getField("portDischarge");
   const finalDestination = getField("finalDestination");
@@ -234,64 +230,58 @@ function buildPdf(){
   const defaultHs = getField("defaultHs");
   const validity = getField("validity");
 
-  // Charges
   const packing = money(toNum(packingChargesEl.value));
   const freight = money(toNum(freightChargesEl.value));
   const insurance = money(toNum(insuranceChargesEl.value));
   const other = money(toNum(otherChargesEl.value));
   const exportChargesTotal = money(toNum(exportChargesTotalEl.value));
 
-  // Notes
   const bankDetails = getField("bankDetails");
   const notes = getField("notes");
 
-  // =======================
-  // Header band
-  // =======================
-  doc.setFillColor(245, 245, 250);
-  doc.rect(0, 0, pageW, 90, "F");
+  // ---------- Header band ----------
+  doc.setFillColor(245,245,250);
+  doc.rect(0, 0, pageW, 92, "F");
 
-  // Logo
+  // Logo (optional)
   if (logoDataUrl) {
     try {
-      doc.addImage(logoDataUrl, "PNG", margin, 18, 95, 45);
+      doc.addImage(logoDataUrl, "PNG", margin, 18, 92, 46);
     } catch (e) {
-      try { doc.addImage(logoDataUrl, "JPEG", margin, 18, 95, 45); } catch(_) {}
+      try { doc.addImage(logoDataUrl, "JPEG", margin, 18, 92, 46); } catch(_) {}
     }
   }
 
-  // Title center
+  // Title
   doc.setTextColor(20);
   doc.setFontSize(16);
-  doc.text(docType, pageW / 2, 40, { align: "center" });
+  doc.text(docType, pageW/2, 42, { align: "center" });
 
   // Right info box
-  const rightX = pageW - margin - 220;
-  drawBox(doc, rightX, 18, 220, 55);
+  const rightX = pageW - margin - 230;
+  drawBox(doc, rightX, 18, 230, 58);
   doc.setFontSize(10);
-  doc.text(`Invoice No: ${invoiceNo || "-"}`, rightX + 12, 38);
-  doc.text(`Date: ${invoiceDate || "-"}`, rightX + 12, 52);
-  doc.text(`Currency: ${currency}`, rightX + 12, 66);
+  doc.text(`Invoice No: ${invoiceNo || "-"}`, rightX + 12, 40);
+  doc.text(`Date: ${invoiceDate || "-"}`, rightX + 12, 55);
+  doc.text(`Currency: ${currency}`, rightX + 12, 70);
 
   // Terms line
   doc.setFontSize(10);
-  doc.text(`Payment Terms: ${paymentTerms || "-"}`, margin, 110);
-  doc.text(`Incoterms: ${incoterms || "-"} | Terms Basis: ${termsBasis || "-"}`, margin, 126);
+  doc.text(`Payment Terms: ${paymentTerms || "-"}`, margin, 112);
+  doc.text(`Incoterms: ${incoterms || "-"} | Terms Basis: ${termsBasis || "-"}`, margin, 128);
 
-  // =======================
-  // Seller / Buyer boxes
-  // =======================
+  // ---------- Seller / Buyer boxes ----------
   const boxY = 145;
-  const boxH = 95;
+  const boxH = 110;
   const gap = 14;
-  const boxW = (pageW - margin * 2 - gap) / 2;
+  const boxW = (pageW - margin*2 - gap) / 2;
 
   drawBox(doc, margin, boxY, boxW, boxH);
   drawBox(doc, margin + boxW + gap, boxY, boxW, boxH);
 
   doc.setFontSize(11);
-  doc.text("Seller", margin + 12, boxY + 18);
-  doc.setFontSize(10);
+  doc.text("SELLER", margin + 12, boxY + 18);
+  doc.setFontSize(9);
   doc.text(
     [
       sellerName,
@@ -306,8 +296,8 @@ function buildPdf(){
   );
 
   doc.setFontSize(11);
-  doc.text("Buyer", margin + boxW + gap + 12, boxY + 18);
-  doc.setFontSize(10);
+  doc.text("BUYER", margin + boxW + gap + 12, boxY + 18);
+  doc.setFontSize(9);
   doc.text(
     [
       buyerName,
@@ -320,35 +310,31 @@ function buildPdf(){
     { maxWidth: boxW - 24 }
   );
 
-  // =======================
-  // Export & GST block
-  // =======================
-  const exY = boxY + boxH + 15;
-  drawBox(doc, margin, exY, pageW - margin * 2, 70);
-
-  doc.setFontSize(11);
-  doc.text("Export & GST", margin + 12, exY + 18);
+  // ---------- Export & GST box ----------
+  const exY = boxY + boxH + 16;
+  drawBox(doc, margin, exY, pageW - margin*2, 80);
 
   const gstLine =
-    gstType === "IGST" ? `GST: IGST ${igstRate}%` :
-    gstType === "CGST_SGST" ? `GST: CGST ${cgstRate}% + SGST ${sgstRate}%` :
-    "GST: None (Export LUT)";
+    gstType === "IGST" ? `IGST ${igstRate}%` :
+    gstType === "CGST_SGST" ? `CGST ${cgstRate}% + SGST ${sgstRate}%` :
+    "None (Export LUT)";
 
-  doc.setFontSize(10);
+  doc.setFontSize(11);
+  doc.text("EXPORT & GST DETAILS", margin + 12, exY + 18);
+
+  doc.setFontSize(9);
   doc.text(
     [
-      `Port Loading: ${portLoading || "-"} | Port Discharge: ${portDischarge || "-"}`,
-      `Final Destination: ${finalDestination || "-"} | Mode: ${shipmentMode || "-"}`,
-      `Origin: ${countryOrigin || "-"} | Default HS: ${defaultHs || "-"}`,
-      `Place of Supply: ${placeOfSupply || "-"} | ${gstLine} | Validity: ${validity || "-"}`,
+      `Port Loading: ${portLoading || "-"}   |   Port Discharge: ${portDischarge || "-"}`,
+      `Final Destination: ${finalDestination || "-"}   |   Mode: ${shipmentMode || "-"}`,
+      `Origin: ${countryOrigin || "-"}   |   Default HS: ${defaultHs || "-"}`,
+      `Place of Supply: ${placeOfSupply || "-"}   |   GST: ${gstLine}   |   Validity: ${validity || "-"}`
     ].join("\n"),
-    margin + 12, exY + 34,
-    { maxWidth: pageW - margin * 2 - 24 }
+    margin + 12, exY + 36,
+    { maxWidth: pageW - margin*2 - 24 }
   );
 
-  // =======================
-  // Items table
-  // =======================
+  // ---------- Items table ----------
   const rows = [...itemsBody.querySelectorAll("tr")].map(tr => ([
     tr.querySelector(".desc").value.trim(),
     (tr.querySelector(".hsn").value.trim() || defaultHs || ""),
@@ -359,114 +345,102 @@ function buildPdf(){
   ]));
 
   doc.autoTable({
-    startY: exY + 85,
-    head: [["Description", "HSN/HS", "Qty", "Unit", "Rate", "Amount"]],
+    startY: exY + 95,
+    head: [["Description", "HS Code", "Qty", "Unit", "Rate", "Amount"]],
     body: rows.length ? rows : [["-", "-", "-", "-", "-", "-"]],
     theme: "grid",
     styles: { fontSize: 9, cellPadding: 6, lineColor: [220,220,230], lineWidth: 0.6 },
     headStyles: { fillColor: [245,245,250], textColor: 20, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [252,252,255] },
     columnStyles: {
-      0: { cellWidth: 230 },
-      1: { cellWidth: 75 },
-      2: { halign: "right", cellWidth: 45 },
-      3: { cellWidth: 55 },
-      4: { halign: "right", cellWidth: 60 },
-      5: { halign: "right", cellWidth: 70 }
+      2: { halign: "right", cellWidth: 48 },
+      4: { halign: "right", cellWidth: 62 },
+      5: { halign: "right", cellWidth: 78 }
     },
     margin: { left: margin, right: margin }
   });
 
-  const y = doc.lastAutoTable.finalY || (exY + 200);
+  let y = (doc.lastAutoTable.finalY || (exY + 200)) + 14;
 
-  // =======================
-  // Totals box (right)
-  // =======================
+  // ---------- Totals + Charges (avoid bottom overflow) ----------
+  if (y > pageH - 260) { doc.addPage(); y = 60; }
+
   const itemsSubtotal = itemsSubtotalEl.textContent;
   const taxableBase = taxableBaseEl.textContent;
   const gstTotal = gstTotalEl.textContent;
   const extraTax = extraTaxViewEl.textContent;
   const grand = grandTotalEl.textContent;
 
-  const totalsX = pageW - margin - 260;
-  const totalsY = y + 16;
+  // Left: Export charges breakdown
+  drawBox(doc, margin, y, 270, 120);
+  doc.setFontSize(10);
+  doc.text("EXPORT CHARGES BREAKDOWN", margin + 12, y + 18);
+  doc.setFontSize(9);
+  doc.text(`Packing: ${currency} ${packing}`, margin + 12, y + 40);
+  doc.text(`Freight: ${currency} ${freight}`, margin + 12, y + 56);
+  doc.text(`Insurance: ${currency} ${insurance}`, margin + 12, y + 72);
+  doc.text(`Other: ${currency} ${other}`, margin + 12, y + 88);
+  doc.text(`Total: ${currency} ${exportChargesTotal}`, margin + 12, y + 106);
 
-  drawBox(doc, totalsX, totalsY, 260, 115);
+  // Right: Totals box
+  const totalsX = pageW - margin - 270;
+  drawBox(doc, totalsX, y, 270, 120);
 
   doc.setFontSize(10);
-  doc.text("Items Subtotal", totalsX + 12, totalsY + 22);
-  doc.text(`${currency} ${itemsSubtotal}`, totalsX + 248, totalsY + 22, { align: "right" });
+  doc.text("Items Subtotal", totalsX + 12, y + 28);
+  doc.text(`${currency} ${itemsSubtotal}`, totalsX + 258, y + 28, { align: "right" });
 
-  doc.text("Export Charges", totalsX + 12, totalsY + 40);
-  doc.text(`${currency} ${exportChargesTotal}`, totalsX + 248, totalsY + 40, { align: "right" });
+  doc.text("Taxable Base", totalsX + 12, y + 48);
+  doc.text(`${currency} ${taxableBase}`, totalsX + 258, y + 48, { align: "right" });
 
-  doc.text("Taxable Base", totalsX + 12, totalsY + 58);
-  doc.text(`${currency} ${taxableBase}`, totalsX + 248, totalsY + 58, { align: "right" });
+  doc.text("GST Total", totalsX + 12, y + 68);
+  doc.text(`${currency} ${gstTotal}`, totalsX + 258, y + 68, { align: "right" });
 
-  doc.text("GST Total", totalsX + 12, totalsY + 76);
-  doc.text(`${currency} ${gstTotal}`, totalsX + 248, totalsY + 76, { align: "right" });
+  doc.text("Extra Tax", totalsX + 12, y + 88);
+  doc.text(`${currency} ${extraTax}`, totalsX + 258, y + 88, { align: "right" });
 
-  doc.text("Extra Tax", totalsX + 12, totalsY + 94);
-  doc.text(`${currency} ${extraTax}`, totalsX + 248, totalsY + 94, { align: "right" });
-
-  doc.setFontSize(11);
   doc.setFont(undefined, "bold");
-  doc.text("Grand Total", totalsX + 12, totalsY + 113);
-  doc.text(`${currency} ${grand}`, totalsX + 248, totalsY + 113, { align: "right" });
+  doc.text("GRAND TOTAL", totalsX + 12, y + 110);
+  doc.text(`${currency} ${grand}`, totalsX + 258, y + 110, { align: "right" });
   doc.setFont(undefined, "normal");
 
-  // =======================
-  // Export charges left block (optional)
-  // =======================
-  const chargesX = margin;
-  const chargesY = totalsY;
+  // ---------- Bank / Notes ----------
+  y = y + 140;
+  if (y > pageH - 220) { doc.addPage(); y = 60; }
 
-  drawBox(doc, chargesX, chargesY, 270, 115);
+  drawBox(doc, margin, y, pageW - margin*2, 90);
   doc.setFontSize(10);
-  doc.text("Export Charges Breakdown", chargesX + 12, chargesY + 18);
+  doc.text("BANK DETAILS", margin + 12, y + 18);
   doc.setFontSize(9);
-  doc.text(`Packing: ${currency} ${packing}`, chargesX + 12, chargesY + 38);
-  doc.text(`Freight: ${currency} ${freight}`, chargesX + 12, chargesY + 54);
-  doc.text(`Insurance: ${currency} ${insurance}`, chargesX + 12, chargesY + 70);
-  doc.text(`Other: ${currency} ${other}`, chargesX + 12, chargesY + 86);
-  doc.text(`Total: ${currency} ${exportChargesTotal}`, chargesX + 12, chargesY + 102);
+  doc.text(bankDetails || "As per company bank details on record.", margin + 12, y + 36, {
+    maxWidth: pageW - margin*2 - 24
+  });
 
-  // =======================
-  // Bank / Notes
-  // =======================
-  const bnY = chargesY + 135;
-
-  drawBox(doc, margin, bnY, pageW - margin * 2, 90);
+  drawBox(doc, margin, y + 100, pageW - margin*2, 80);
   doc.setFontSize(10);
-  doc.text("Bank Details", margin + 12, bnY + 18);
+  doc.text("NOTES", margin + 12, y + 118);
   doc.setFontSize(9);
-  doc.text(bankDetails || "-", margin + 12, bnY + 35, { maxWidth: pageW - margin * 2 - 24 });
+  doc.text(notes || "-", margin + 12, y + 136, { maxWidth: pageW - margin*2 - 24 });
 
-  drawBox(doc, margin, bnY + 100, pageW - margin * 2, 80);
-  doc.setFontSize(10);
-  doc.text("Notes", margin + 12, bnY + 118);
-  doc.setFontSize(9);
-  doc.text(notes || "-", margin + 12, bnY + 135, { maxWidth: pageW - margin * 2 - 24 });
+  // Signature
+  const sigY = y + 190;
+  if (sigY < pageH - 70) {
+    drawBox(doc, margin, sigY, 260, 60);
+    doc.setFontSize(10);
+    doc.text("Authorized Signatory", margin + 12, sigY + 22);
+    doc.setTextColor(120);
+    doc.setFontSize(9);
+    doc.text("(Signature & Stamp)", margin + 12, sigY + 40);
+    doc.setTextColor(20);
+  }
 
-  // =======================
-  // Signature + Footer
-  // =======================
-  const sigY = bnY + 190;
-  drawBox(doc, margin, sigY, 260, 65);
-  doc.setFontSize(10);
-  doc.text("Authorized Signatory", margin + 12, sigY + 22);
-  doc.setTextColor(120);
-  doc.setFontSize(9);
-  doc.text("(Signature & Stamp)", margin + 12, sigY + 42);
-  doc.setTextColor(20);
-
+  // Footer
   doc.setFontSize(8);
   doc.setTextColor(120);
-  doc.text("This is a computer generated document.", margin, pageH - 20);
+  doc.text("This is a computer generated document.", margin, pageH - 18);
   doc.setTextColor(20);
 
   const safeName = (invoiceNo || docType).replace(/[^\w\-]+/g, "_");
   doc.save(`${safeName}.pdf`);
 }
 
-downloadPdfBtn.addEventListener("click", buildPdf);
