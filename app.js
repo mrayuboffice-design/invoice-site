@@ -35,17 +35,16 @@ const logoInput = document.getElementById("logoInput");
 // =====================
 // Helpers
 // =====================
-function toNum(v){
+function toNum(v) {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : 0;
 }
-function money(n){
+function money(n) {
   return (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
 }
-function getField(id){
+function getField(id) {
   return (document.getElementById(id)?.value ?? "").trim();
 }
-
 function drawBox(doc, x, y, w, h) {
   doc.setDrawColor(210);
   doc.setLineWidth(0.8);
@@ -53,7 +52,75 @@ function drawBox(doc, x, y, w, h) {
 }
 
 // =====================
-// Logo upload (IMPORTANT)
+// Amount in Words (Indian numbering)
+// =====================
+function numberToWordsIndian(n) {
+  n = Math.floor(n);
+  if (!Number.isFinite(n) || n < 0) return "";
+
+  const a = [
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+    "Seventeen", "Eighteen", "Nineteen"
+  ];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+  function twoDigits(num) {
+    if (num < 20) return a[num];
+    const tens = Math.floor(num / 10);
+    const ones = num % 10;
+    return b[tens] + (ones ? " " + a[ones] : "");
+  }
+
+  function threeDigits(num) {
+    const h = Math.floor(num / 100);
+    const rest = num % 100;
+    let s = "";
+    if (h) s += a[h] + " Hundred";
+    if (rest) s += (s ? " " : "") + twoDigits(rest);
+    return s;
+  }
+
+  if (n === 0) return "Zero";
+
+  const crore = Math.floor(n / 10000000);
+  n = n % 10000000;
+  const lakh = Math.floor(n / 100000);
+  n = n % 100000;
+  const thousand = Math.floor(n / 1000);
+  n = n % 1000;
+  const hundredPart = n;
+
+  let parts = [];
+  if (crore) parts.push(threeDigits(crore) + " Crore");
+  if (lakh) parts.push(threeDigits(lakh) + " Lakh");
+  if (thousand) parts.push(threeDigits(thousand) + " Thousand");
+  if (hundredPart) parts.push(threeDigits(hundredPart));
+
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+function amountInWords(total, currencyCode) {
+  const whole = Math.floor(total);
+  const frac = Math.round((total - whole) * 100);
+
+  let major = "Dollars";
+  let minor = "Cents";
+
+  const c = (currencyCode || "").toUpperCase();
+  if (c === "INR") { major = "Rupees"; minor = "Paise"; }
+  else if (c === "AED") { major = "Dirhams"; minor = "Fils"; }
+  else if (c === "EUR") { major = "Euros"; minor = "Cents"; }
+  else if (c === "GBP") { major = "Pounds"; minor = "Pence"; }
+  else if (c === "SAR") { major = "Riyals"; minor = "Halalas"; }
+
+  const wholeWords = numberToWordsIndian(whole) + " " + major;
+  const fracWords = frac ? (" and " + numberToWordsIndian(frac) + " " + minor) : "";
+  return (wholeWords + fracWords + " Only").replace(/\s+/g, " ").trim();
+}
+
+// =====================
+// Logo upload
 // =====================
 if (logoInput) {
   logoInput.addEventListener("change", (e) => {
@@ -99,7 +166,7 @@ function addRow(data = {}) {
   recalc();
 }
 
-function computeExportCharges(){
+function computeExportCharges() {
   const packing = toNum(packingChargesEl.value);
   const freight = toNum(freightChargesEl.value);
   const insurance = toNum(insuranceChargesEl.value);
@@ -109,7 +176,7 @@ function computeExportCharges(){
   return total;
 }
 
-function recalc(){
+function recalc() {
   let itemsSubtotal = 0;
 
   [...itemsBody.querySelectorAll("tr")].forEach(tr => {
@@ -122,7 +189,6 @@ function recalc(){
 
   const discount = toNum(discountEl.value);
   const exportChargesTotal = computeExportCharges();
-
   const taxableBase = Math.max(0, itemsSubtotal - discount) + exportChargesTotal;
 
   const gstType = gstTypeEl.value;
@@ -131,7 +197,6 @@ function recalc(){
   const sgstRate = toNum(sgstRateEl.value);
 
   let igst = 0, cgst = 0, sgst = 0;
-
   if (gstType === "IGST") {
     igst = taxableBase * (igstRate / 100);
   } else if (gstType === "CGST_SGST") {
@@ -169,24 +234,24 @@ gstTypeEl.addEventListener("change", recalc);
 addRowBtn.addEventListener("click", () => addRow());
 
 // default row
-addRow({ desc: "Stone Veneer / Product", hsn: "", qty: 1, unit: "pcs", rate: 0 });
+addRow({ desc: "Product / Item", hsn: "", qty: 1, unit: "pcs", rate: 0 });
 
-// Set default date = today
-(function setToday(){
+// default date
+(function setToday() {
   const el = document.getElementById("invoiceDate");
   if (el && !el.value) {
     const d = new Date();
     const yyyy = d.getFullYear();
-    const mm = String(d.getMonth()+1).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
     el.value = `${yyyy}-${mm}-${dd}`;
   }
 })();
 
 // =====================
-// Professional PDF
+// Professional PDF + Amount in Words
 // =====================
-function buildPdf(){
+function buildPdf() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
@@ -239,23 +304,21 @@ function buildPdf(){
   const bankDetails = getField("bankDetails");
   const notes = getField("notes");
 
-  // ---------- Header band ----------
-  doc.setFillColor(245,245,250);
+  // Header band
+  doc.setFillColor(245, 245, 250);
   doc.rect(0, 0, pageW, 92, "F");
 
-  // Logo (optional)
+  // Logo
   if (logoDataUrl) {
-    try {
-      doc.addImage(logoDataUrl, "PNG", margin, 18, 92, 46);
-    } catch (e) {
-      try { doc.addImage(logoDataUrl, "JPEG", margin, 18, 92, 46); } catch(_) {}
+    try { doc.addImage(logoDataUrl, "PNG", margin, 18, 92, 46); }
+    catch (e) {
+      try { doc.addImage(logoDataUrl, "JPEG", margin, 18, 92, 46); } catch (_) {}
     }
   }
 
-  // Title
   doc.setTextColor(20);
   doc.setFontSize(16);
-  doc.text(docType, pageW/2, 42, { align: "center" });
+  doc.text(docType, pageW / 2, 42, { align: "center" });
 
   // Right info box
   const rightX = pageW - margin - 230;
@@ -265,16 +328,16 @@ function buildPdf(){
   doc.text(`Date: ${invoiceDate || "-"}`, rightX + 12, 55);
   doc.text(`Currency: ${currency}`, rightX + 12, 70);
 
-  // Terms line
+  // Terms
   doc.setFontSize(10);
   doc.text(`Payment Terms: ${paymentTerms || "-"}`, margin, 112);
   doc.text(`Incoterms: ${incoterms || "-"} | Terms Basis: ${termsBasis || "-"}`, margin, 128);
 
-  // ---------- Seller / Buyer boxes ----------
+  // Seller / Buyer boxes
   const boxY = 145;
   const boxH = 110;
   const gap = 14;
-  const boxW = (pageW - margin*2 - gap) / 2;
+  const boxW = (pageW - margin * 2 - gap) / 2;
 
   drawBox(doc, margin, boxY, boxW, boxH);
   drawBox(doc, margin + boxW + gap, boxY, boxW, boxH);
@@ -310,9 +373,9 @@ function buildPdf(){
     { maxWidth: boxW - 24 }
   );
 
-  // ---------- Export & GST box ----------
+  // Export & GST box
   const exY = boxY + boxH + 16;
-  drawBox(doc, margin, exY, pageW - margin*2, 80);
+  drawBox(doc, margin, exY, pageW - margin * 2, 80);
 
   const gstLine =
     gstType === "IGST" ? `IGST ${igstRate}%` :
@@ -331,10 +394,10 @@ function buildPdf(){
       `Place of Supply: ${placeOfSupply || "-"}   |   GST: ${gstLine}   |   Validity: ${validity || "-"}`
     ].join("\n"),
     margin + 12, exY + 36,
-    { maxWidth: pageW - margin*2 - 24 }
+    { maxWidth: pageW - margin * 2 - 24 }
   );
 
-  // ---------- Items table ----------
+  // Items table
   const rows = [...itemsBody.querySelectorAll("tr")].map(tr => ([
     tr.querySelector(".desc").value.trim(),
     (tr.querySelector(".hsn").value.trim() || defaultHs || ""),
@@ -349,9 +412,9 @@ function buildPdf(){
     head: [["Description", "HS Code", "Qty", "Unit", "Rate", "Amount"]],
     body: rows.length ? rows : [["-", "-", "-", "-", "-", "-"]],
     theme: "grid",
-    styles: { fontSize: 9, cellPadding: 6, lineColor: [220,220,230], lineWidth: 0.6 },
-    headStyles: { fillColor: [245,245,250], textColor: 20, fontStyle: "bold" },
-    alternateRowStyles: { fillColor: [252,252,255] },
+    styles: { fontSize: 9, cellPadding: 6, lineColor: [220, 220, 230], lineWidth: 0.6 },
+    headStyles: { fillColor: [245, 245, 250], textColor: 20, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [252, 252, 255] },
     columnStyles: {
       2: { halign: "right", cellWidth: 48 },
       4: { halign: "right", cellWidth: 62 },
@@ -362,14 +425,20 @@ function buildPdf(){
 
   let y = (doc.lastAutoTable.finalY || (exY + 200)) + 14;
 
-  // ---------- Totals + Charges (avoid bottom overflow) ----------
-  if (y > pageH - 260) { doc.addPage(); y = 60; }
+  // Totals and charges - prevent overflow
+  if (y > pageH - 320) {
+    doc.addPage();
+    y = 60;
+  }
 
   const itemsSubtotal = itemsSubtotalEl.textContent;
   const taxableBase = taxableBaseEl.textContent;
   const gstTotal = gstTotalEl.textContent;
   const extraTax = extraTaxViewEl.textContent;
   const grand = grandTotalEl.textContent;
+
+  const grandNum = toNum(grand);
+  const inWords = amountInWords(grandNum, currency);
 
   // Left: Export charges breakdown
   drawBox(doc, margin, y, 270, 120);
@@ -404,26 +473,37 @@ function buildPdf(){
   doc.text(`${currency} ${grand}`, totalsX + 258, y + 110, { align: "right" });
   doc.setFont(undefined, "normal");
 
-  // ---------- Bank / Notes ----------
-  y = y + 140;
-  if (y > pageH - 220) { doc.addPage(); y = 60; }
-
-  drawBox(doc, margin, y, pageW - margin*2, 90);
+  // Amount in Words box
+  const wordsY = y + 135;
+  drawBox(doc, margin, wordsY, pageW - margin * 2, 45);
   doc.setFontSize(10);
-  doc.text("BANK DETAILS", margin + 12, y + 18);
+  doc.text("AMOUNT IN WORDS", margin + 12, wordsY + 18);
   doc.setFontSize(9);
-  doc.text(bankDetails || "As per company bank details on record.", margin + 12, y + 36, {
-    maxWidth: pageW - margin*2 - 24
+  doc.text(inWords, margin + 12, wordsY + 35, { maxWidth: pageW - margin * 2 - 24 });
+
+  // Bank / Notes
+  let bnY = wordsY + 60;
+  if (bnY > pageH - 220) {
+    doc.addPage();
+    bnY = 60;
+  }
+
+  drawBox(doc, margin, bnY, pageW - margin * 2, 90);
+  doc.setFontSize(10);
+  doc.text("BANK DETAILS", margin + 12, bnY + 18);
+  doc.setFontSize(9);
+  doc.text(bankDetails || "As per company bank details on record.", margin + 12, bnY + 36, {
+    maxWidth: pageW - margin * 2 - 24
   });
 
-  drawBox(doc, margin, y + 100, pageW - margin*2, 80);
+  drawBox(doc, margin, bnY + 100, pageW - margin * 2, 80);
   doc.setFontSize(10);
-  doc.text("NOTES", margin + 12, y + 118);
+  doc.text("NOTES", margin + 12, bnY + 118);
   doc.setFontSize(9);
-  doc.text(notes || "-", margin + 12, y + 136, { maxWidth: pageW - margin*2 - 24 });
+  doc.text(notes || "-", margin + 12, bnY + 136, { maxWidth: pageW - margin * 2 - 24 });
 
   // Signature
-  const sigY = y + 190;
+  const sigY = bnY + 190;
   if (sigY < pageH - 70) {
     drawBox(doc, margin, sigY, 260, 60);
     doc.setFontSize(10);
@@ -444,3 +524,4 @@ function buildPdf(){
   doc.save(`${safeName}.pdf`);
 }
 
+downloadPdfBtn.addEventListener("click", buildPdf);
