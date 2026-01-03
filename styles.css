@@ -27,3 +27,9 @@ td input{border-radius:10px;padding:8px}
 @media (max-width:900px){
   .grid{grid-template-columns:1fr}
 }
+
+@media print{
+  .topbar, .footer, button { display:none !important; }
+  body{ background:#fff; }
+  .card{ border:none; }
+}
