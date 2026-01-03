@@ -41,7 +41,8 @@ const logoInput = document.getElementById("logoInput");
 // Helpers
 // =====================
 function toNum(v) {
-  const n = parseFloat(v);
+  if (v === null || v === undefined) return 0;
+  const n = parseFloat(String(v).replace(/,/g, ""));
   return Number.isFinite(n) ? n : 0;
 }
 function money(n) {
@@ -146,7 +147,6 @@ function collectFormState() {
   const data = {};
   ids.forEach(id => data[id] = getField(id));
 
-  // Items
   data.items = [...itemsBody.querySelectorAll("tr")].map(tr => ({
     desc: tr.querySelector(".desc").value,
     hsn: tr.querySelector(".hsn").value,
@@ -155,7 +155,6 @@ function collectFormState() {
     rate: tr.querySelector(".rate").value
   }));
 
-  // Logo
   data.logoDataUrl = logoDataUrl;
 
   return data;
@@ -165,7 +164,7 @@ function saveToStorage() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(collectFormState()));
   } catch (e) {
-    // storage full or blocked
+    // ignore
   }
 }
 
@@ -175,16 +174,13 @@ function loadFromStorage() {
     if (!raw) return false;
     const data = JSON.parse(raw);
 
-    // fields
     Object.keys(data).forEach(key => {
       if (key === "items" || key === "logoDataUrl") return;
       setField(key, data[key]);
     });
 
-    // logo
     if (data.logoDataUrl) logoDataUrl = data.logoDataUrl;
 
-    // items
     itemsBody.innerHTML = "";
     if (Array.isArray(data.items) && data.items.length) {
       data.items.forEach(it => addRow(it, true));
@@ -192,6 +188,7 @@ function loadFromStorage() {
       addRow({ desc: "Product / Item", hsn: "", qty: 1, unit: "pcs", rate: 0 }, true);
     }
 
+    setTodayIfEmpty();
     recalc();
     return true;
   } catch (e) {
@@ -204,16 +201,16 @@ function clearStorageAndReset() {
   logoDataUrl = "";
   if (logoInput) logoInput.value = "";
 
-  // Reset fields quickly (keep date to today)
+  // reset inputs
   document.querySelectorAll("input, select, textarea").forEach(el => {
     if (el.id === "invoiceDate") return;
     if (el.id === "exportChargesTotal") return;
     if (el.type === "file") return;
-    if (el.tagName === "SELECT") { /* reset to first option */ el.selectedIndex = 0; return; }
+    if (el.tagName === "SELECT") { el.selectedIndex = 0; return; }
     el.value = "";
   });
 
-  // Default values
+  // defaults
   setField("currency", "USD");
   setField("countryOrigin", "India");
   setField("igstRate", "0");
@@ -231,6 +228,7 @@ function clearStorageAndReset() {
 
   setTodayIfEmpty();
   recalc();
+  saveToStorage();
 }
 
 // =====================
@@ -273,12 +271,20 @@ function addRow(data = {}, skipSave = false) {
     saveToStorage();
   });
 
-  ["input", "change"].forEach(evt => {
-    tr.querySelector(".qty").addEventListener(evt, () => { recalc(); saveToStorage(); });
-    tr.querySelector(".rate").addEventListener(evt, () => { recalc(); saveToStorage(); });
-    tr.querySelector(".desc").addEventListener(evt, () => { saveToStorage(); });
-    tr.querySelector(".hsn").addEventListener(evt, () => { saveToStorage(); });
-    tr.querySelector(".unit").addEventListener(evt, () => { saveToStorage(); });
+  const watch = (sel) => {
+    const el = tr.querySelector(sel);
+    ["input", "change"].forEach(evt => el.addEventListener(evt, () => {
+      recalc();
+      saveToStorage();
+    }));
+  };
+  watch(".qty");
+  watch(".rate");
+
+  // non-calc fields still should save
+  [".desc",".hsn",".unit"].forEach(sel => {
+    const el = tr.querySelector(sel);
+    ["input","change"].forEach(evt => el.addEventListener(evt, () => saveToStorage()));
   });
 
   itemsBody.appendChild(tr);
@@ -337,7 +343,7 @@ function recalc() {
 // =====================
 // Date default
 // =====================
-function setTodayIfEmpty(){
+function setTodayIfEmpty() {
   const el = document.getElementById("invoiceDate");
   if (el && !el.value) {
     const d = new Date();
@@ -349,7 +355,7 @@ function setTodayIfEmpty(){
 }
 
 // =====================
-// Listeners (save on input)
+// Init + Listeners
 // =====================
 [
   discountEl,
@@ -366,15 +372,40 @@ function setTodayIfEmpty(){
 
 gstTypeEl.addEventListener("change", () => { recalc(); saveToStorage(); });
 
-addRowBtn.addEventListener("click", () => addRow());
+if (addRowBtn) addRowBtn.addEventListener("click", () => addRow());
 
-// Save / Print / Clear buttons
 if (saveBtn) saveBtn.addEventListener("click", () => { saveToStorage(); alert("Saved ✅"); });
-if (printBtn) printBtn.addEventListener("click", () => window.print());
+
 if (clearBtn) clearBtn.addEventListener("click", () => {
   const ok = confirm("Clear all saved data?");
   if (ok) clearStorageAndReset();
 });
+
+// Print = SAME PDF layout (open PDF in new tab then print)
+if (printBtn) {
+  printBtn.addEventListener("click", () => {
+    try {
+      saveToStorage();
+
+      const doc = buildPdf(true); // return pdf only
+      const blobUrl = doc.output("bloburl");
+      const w = window.open(blobUrl, "_blank");
+
+      if (!w) {
+        alert("Popup blocked. Please allow popups and try again.");
+        return;
+      }
+
+      w.onload = () => {
+        w.focus();
+        w.print();
+      };
+    } catch (e) {
+      console.error(e);
+      alert("Print error. Please try again.");
+    }
+  });
+}
 
 // Auto-save for all inputs/selects/textareas
 document.addEventListener("input", (e) => {
@@ -385,16 +416,12 @@ document.addEventListener("input", (e) => {
   saveToStorage();
 });
 
-// =====================
-// Init
-// =====================
-(function init(){
-  // Try load saved data
+(function init() {
   const loaded = loadFromStorage();
   if (!loaded) {
-    // create default row if nothing
     itemsBody.innerHTML = "";
     addRow({ desc: "Product / Item", hsn: "", qty: 1, unit: "pcs", rate: 0 }, true);
+
     setTodayIfEmpty();
     setField("currency", "USD");
     setField("countryOrigin", "India");
@@ -407,15 +434,17 @@ document.addEventListener("input", (e) => {
     setField("freightCharges", "0");
     setField("insuranceCharges", "0");
     setField("otherCharges", "0");
+
     recalc();
     saveToStorage();
   }
 })();
 
 // =====================
-// PDF (same as your professional version + amount in words)
+// PDF (Professional + Amount in Words)
+// returnDocOnly=true => return doc instead of saving
 // =====================
-function buildPdf() {
+function buildPdf(returnDocOnly = false) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
@@ -587,7 +616,6 @@ function buildPdf() {
   });
 
   let y = (doc.lastAutoTable.finalY || (exY + 200)) + 14;
-
   if (y > pageH - 320) { doc.addPage(); y = 60; }
 
   const itemsSubtotal = itemsSubtotalEl.textContent;
@@ -598,37 +626,44 @@ function buildPdf() {
 
   const inWords = amountInWords(toNum(grand), currency);
 
-  // Left: Export charges
-  drawBox(doc, margin, y, 270, 120);
+  // =====================
+  // CHARGES + TOTALS (NO OVERLAP FIX)
+  // =====================
+  const boxGap2 = 14;
+  const halfW = (pageW - margin * 2 - boxGap2) / 2;
+  const leftX = margin;
+  const rightBoxX = margin + halfW + boxGap2;
+
+  drawBox(doc, leftX, y, halfW, 120);
   doc.setFontSize(10);
-  doc.text("EXPORT CHARGES BREAKDOWN", margin + 12, y + 18);
+  doc.text("EXPORT CHARGES BREAKDOWN", leftX + 12, y + 18);
   doc.setFontSize(9);
-  doc.text(`Packing: ${currency} ${packing}`, margin + 12, y + 40);
-  doc.text(`Freight: ${currency} ${freight}`, margin + 12, y + 56);
-  doc.text(`Insurance: ${currency} ${insurance}`, margin + 12, y + 72);
-  doc.text(`Other: ${currency} ${other}`, margin + 12, y + 88);
-  doc.text(`Total: ${currency} ${exportChargesTotal}`, margin + 12, y + 106);
+  doc.text(`Packing: ${currency} ${packing}`, leftX + 12, y + 40);
+  doc.text(`Freight: ${currency} ${freight}`, leftX + 12, y + 56);
+  doc.text(`Insurance: ${currency} ${insurance}`, leftX + 12, y + 72);
+  doc.text(`Other: ${currency} ${other}`, leftX + 12, y + 88);
+  doc.text(`Total: ${currency} ${exportChargesTotal}`, leftX + 12, y + 106);
 
-  // Right: Totals box
-  const totalsX = pageW - margin - 270;
-  drawBox(doc, totalsX, y, 270, 120);
+  drawBox(doc, rightBoxX, y, halfW, 120);
+  const rightTextX = rightBoxX + 12;
+  const rightValueX = rightBoxX + halfW - 12;
 
   doc.setFontSize(10);
-  doc.text("Items Subtotal", totalsX + 12, y + 28);
-  doc.text(`${currency} ${itemsSubtotal}`, totalsX + 258, y + 28, { align: "right" });
+  doc.text("Items Subtotal", rightTextX, y + 28);
+  doc.text(`${currency} ${itemsSubtotal}`, rightValueX, y + 28, { align: "right" });
 
-  doc.text("Taxable Base", totalsX + 12, y + 48);
-  doc.text(`${currency} ${taxableBase}`, totalsX + 258, y + 48, { align: "right" });
+  doc.text("Taxable Base", rightTextX, y + 48);
+  doc.text(`${currency} ${taxableBase}`, rightValueX, y + 48, { align: "right" });
 
-  doc.text("GST Total", totalsX + 12, y + 68);
-  doc.text(`${currency} ${gstTotal}`, totalsX + 258, y + 68, { align: "right" });
+  doc.text("GST Total", rightTextX, y + 68);
+  doc.text(`${currency} ${gstTotal}`, rightValueX, y + 68, { align: "right" });
 
-  doc.text("Extra Tax", totalsX + 12, y + 88);
-  doc.text(`${currency} ${extraTax}`, totalsX + 258, y + 88, { align: "right" });
+  doc.text("Extra Tax", rightTextX, y + 88);
+  doc.text(`${currency} ${extraTax}`, rightValueX, y + 88, { align: "right" });
 
   doc.setFont(undefined, "bold");
-  doc.text("GRAND TOTAL", totalsX + 12, y + 110);
-  doc.text(`${currency} ${grand}`, totalsX + 258, y + 110, { align: "right" });
+  doc.text("GRAND TOTAL", rightTextX, y + 110);
+  doc.text(`${currency} ${grand}`, rightValueX, y + 110, { align: "right" });
   doc.setFont(undefined, "normal");
 
   // Amount in Words box
@@ -669,13 +704,23 @@ function buildPdf() {
     doc.setTextColor(20);
   }
 
+  // Footer
   doc.setFontSize(8);
   doc.setTextColor(120);
   doc.text("This is a computer generated document.", margin, pageH - 18);
   doc.setTextColor(20);
 
   const safeName = (invoiceNo || docType).replace(/[^\w\-]+/g, "_");
+
+  if (returnDocOnly) return doc;
   doc.save(`${safeName}.pdf`);
+  return doc;
 }
 
-downloadPdfBtn.addEventListener("click", () => { saveToStorage(); buildPdf(); });
+// Download PDF (also saves first)
+if (downloadPdfBtn) {
+  downloadPdfBtn.addEventListener("click", () => {
+    saveToStorage();
+    buildPdf(false);
+  });
+}
