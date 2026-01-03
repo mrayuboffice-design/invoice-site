@@ -1,19 +1,20 @@
 // =====================
-// State
+// FINAL UPDATED app.js (WITH CUSTOM FONTS SUPPORT)
+// Fonts: ITC Avant Garde Gothic (headings) + TT Fors (body)
+// Requires: fonts.js with base64 strings in window.__FONTS__
 // =====================
-let logoDataUrl = ""; // base64 logo
-const STORAGE_KEY = "invoice_site_v1";
 
-// =====================
-// DOM
-// =====================
+let logoDataUrl = "";
+const STORAGE_KEY = "invoice_site_v2";
+
+// ---------- DOM ----------
 const itemsBody = document.getElementById("itemsBody");
 const addRowBtn = document.getElementById("addRowBtn");
 const downloadPdfBtn = document.getElementById("downloadPdfBtn");
-
 const saveBtn = document.getElementById("saveBtn");
 const printBtn = document.getElementById("printBtn");
 const clearBtn = document.getElementById("clearBtn");
+const logoInput = document.getElementById("logoInput");
 
 const itemsSubtotalEl = document.getElementById("itemsSubtotal");
 const taxableBaseEl = document.getElementById("taxableBase");
@@ -23,7 +24,6 @@ const grandTotalEl = document.getElementById("grandTotal");
 
 const discountEl = document.getElementById("discount");
 const extraTaxEl = document.getElementById("extraTax");
-
 const gstTypeEl = document.getElementById("gstType");
 const igstRateEl = document.getElementById("igstRate");
 const cgstRateEl = document.getElementById("cgstRate");
@@ -35,119 +35,113 @@ const insuranceChargesEl = document.getElementById("insuranceCharges");
 const otherChargesEl = document.getElementById("otherCharges");
 const exportChargesTotalEl = document.getElementById("exportChargesTotal");
 
-const logoInput = document.getElementById("logoInput");
+const shipSameAsCustomerEl = document.getElementById("shipSameAsCustomer");
 
-// =====================
-// Helpers
-// =====================
-function toNum(v) {
-  if (v === null || v === undefined) return 0;
-  const n = parseFloat(String(v).replace(/,/g, ""));
-  return Number.isFinite(n) ? n : 0;
-}
-function money(n) {
-  return (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
-}
-function getField(id) {
-  return (document.getElementById(id)?.value ?? "").trim();
-}
-function setField(id, value) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.value = value ?? "";
-}
-function drawBox(doc, x, y, w, h) {
+// ---------- Helpers ----------
+function toNum(v){ const n=parseFloat(v); return Number.isFinite(n)?n:0; }
+function money(n){ return (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2); }
+function getField(id){ return (document.getElementById(id)?.value ?? "").trim(); }
+function setField(id, v){ const el=document.getElementById(id); if(el) el.value = v ?? ""; }
+function safeText(v, fb="-"){ const s=(v??"").toString().trim(); return s ? s : fb; }
+function cmToPt(cm){ return cm * 28.3464567; }
+
+function drawBox(doc,x,y,w,h){
   doc.setDrawColor(210);
   doc.setLineWidth(0.8);
-  doc.roundedRect(x, y, w, h, 8, 8);
+  doc.roundedRect(x,y,w,h,8,8);
 }
 
-// =====================
-// Amount in Words (Indian numbering)
-// =====================
-function numberToWordsIndian(n) {
-  n = Math.floor(n);
-  if (!Number.isFinite(n) || n < 0) return "";
-
-  const a = [
-    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
-    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
-    "Seventeen", "Eighteen", "Nineteen"
-  ];
-  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-
-  function twoDigits(num) {
-    if (num < 20) return a[num];
-    const tens = Math.floor(num / 10);
-    const ones = num % 10;
-    return b[tens] + (ones ? " " + a[ones] : "");
+// ---------- Amount in Words (Indian) ----------
+function numberToWordsIndian(n){
+  n=Math.floor(n);
+  if(!Number.isFinite(n)||n<0) return "";
+  const a=["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+  const b=["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+  function twoDigits(num){
+    if(num<20) return a[num];
+    const tens=Math.floor(num/10);
+    const ones=num%10;
+    return b[tens]+(ones?" "+a[ones]:"");
   }
-
-  function threeDigits(num) {
-    const h = Math.floor(num / 100);
-    const rest = num % 100;
-    let s = "";
-    if (h) s += a[h] + " Hundred";
-    if (rest) s += (s ? " " : "") + twoDigits(rest);
+  function threeDigits(num){
+    const h=Math.floor(num/100);
+    const rest=num%100;
+    let s="";
+    if(h) s+=a[h]+" Hundred";
+    if(rest) s+=(s?" ":"")+twoDigits(rest);
     return s;
   }
-
-  if (n === 0) return "Zero";
-
-  const crore = Math.floor(n / 10000000);
-  n = n % 10000000;
-  const lakh = Math.floor(n / 100000);
-  n = n % 100000;
-  const thousand = Math.floor(n / 1000);
-  n = n % 1000;
-  const hundredPart = n;
-
-  let parts = [];
-  if (crore) parts.push(threeDigits(crore) + " Crore");
-  if (lakh) parts.push(threeDigits(lakh) + " Lakh");
-  if (thousand) parts.push(threeDigits(thousand) + " Thousand");
-  if (hundredPart) parts.push(threeDigits(hundredPart));
-
-  return parts.join(" ").replace(/\s+/g, " ").trim();
+  if(n===0) return "Zero";
+  const crore=Math.floor(n/10000000); n%=10000000;
+  const lakh=Math.floor(n/100000); n%=100000;
+  const thousand=Math.floor(n/1000); n%=1000;
+  const hundredPart=n;
+  const parts=[];
+  if(crore) parts.push(threeDigits(crore)+" Crore");
+  if(lakh) parts.push(threeDigits(lakh)+" Lakh");
+  if(thousand) parts.push(threeDigits(thousand)+" Thousand");
+  if(hundredPart) parts.push(threeDigits(hundredPart));
+  return parts.join(" ").replace(/\s+/g," ").trim();
 }
 
-function amountInWords(total, currencyCode) {
-  const whole = Math.floor(total);
-  const frac = Math.round((total - whole) * 100);
+function amountInWords(total,currencyCode){
+  const whole=Math.floor(total);
+  const frac=Math.round((total-whole)*100);
+  let major="Dollars", minor="Cents";
+  const c=(currencyCode||"").toUpperCase();
+  if(c==="INR"){ major="Rupees"; minor="Paise"; }
+  if(c==="AED"){ major="Dirhams"; minor="Fils"; }
+  if(c==="EUR"){ major="Euros"; minor="Cents"; }
+  if(c==="GBP"){ major="Pounds"; minor="Pence"; }
+  if(c==="SAR"){ major="Riyals"; minor="Halalas"; }
 
-  let major = "Dollars";
-  let minor = "Cents";
-
-  const c = (currencyCode || "").toUpperCase();
-  if (c === "INR") { major = "Rupees"; minor = "Paise"; }
-  else if (c === "AED") { major = "Dirhams"; minor = "Fils"; }
-  else if (c === "EUR") { major = "Euros"; minor = "Cents"; }
-  else if (c === "GBP") { major = "Pounds"; minor = "Pence"; }
-  else if (c === "SAR") { major = "Riyals"; minor = "Halalas"; }
-
-  const wholeWords = numberToWordsIndian(whole) + " " + major;
-  const fracWords = frac ? (" and " + numberToWordsIndian(frac) + " " + minor) : "";
-  return (wholeWords + fracWords + " Only").replace(/\s+/g, " ").trim();
+  const wholeWords = numberToWordsIndian(whole)+" "+major;
+  const fracWords = frac ? (" and "+numberToWordsIndian(frac)+" "+minor) : "";
+  return (wholeWords+fracWords+" Only").replace(/\s+/g," ").trim();
 }
 
-// =====================
-// Auto-save (localStorage)
-// =====================
-function collectFormState() {
+// ---------- Ship To sync ----------
+function syncShipToFromCustomer(){
+  if(!shipSameAsCustomerEl) return;
+  const same = shipSameAsCustomerEl.checked;
+
+  const shipFields = ["shipName","shipAddress","shipCountry","shipContact"];
+  shipFields.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.disabled = same;
+  });
+
+  if(same){
+    setField("shipName", getField("buyerName"));
+    setField("shipAddress", getField("buyerAddress"));
+    setField("shipCountry", getField("buyerCountry"));
+    setField("shipContact", getField("buyerContact"));
+  }
+}
+
+// ---------- Storage ----------
+function collectFormState(){
   const ids = [
-    "docType","invoiceNo","invoiceDate","currency","paymentTerms","incoterms","placeOfSupply",
+    "docType","invoiceNo","invoiceDate","currency","paymentTerms","incoterms","termsBasis","placeOfSupply",
     "gstType","igstRate","cgstRate","sgstRate","extraTax",
-    "sellerName","sellerAddress","sellerTax","sellerPan","sellerIec","sellerContact",
+    "sellerName","sellerAddress","sellerTax","sellerPan","sellerIec","sellerContact","sellerAdCode",
     "buyerName","buyerAddress","buyerCountry","buyerTax","buyerContact",
-    "portLoading","portDischarge","finalDestination","countryOrigin","shipmentMode","defaultHs","termsBasis","validity",
+    "shipName","shipAddress","shipCountry","shipContact","shipSameAsCustomer",
+    "portLoading","portDischarge","finalDestination","countryOrigin","shipmentMode","defaultHs","validity",
     "packingCharges","freightCharges","insuranceCharges","otherCharges","discount",
     "bankDetails","notes"
   ];
 
   const data = {};
-  ids.forEach(id => data[id] = getField(id));
+  ids.forEach(id=>{
+    if(id==="shipSameAsCustomer"){
+      data[id] = !!document.getElementById("shipSameAsCustomer")?.checked;
+    } else {
+      data[id] = getField(id);
+    }
+  });
 
-  data.items = [...itemsBody.querySelectorAll("tr")].map(tr => ({
+  data.items = [...itemsBody.querySelectorAll("tr")].map(tr=>({
     desc: tr.querySelector(".desc").value,
     hsn: tr.querySelector(".hsn").value,
     qty: tr.querySelector(".qty").value,
@@ -155,106 +149,99 @@ function collectFormState() {
     rate: tr.querySelector(".rate").value
   }));
 
-  data.logoDataUrl = logoDataUrl;
-
+  data.logoDataUrl = logoDataUrl || "";
   return data;
 }
 
-function saveToStorage() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(collectFormState()));
-  } catch (e) {
-    // ignore
-  }
+function saveToStorage(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(collectFormState())); }catch(e){}
 }
 
-function loadFromStorage() {
-  try {
+function loadFromStorage(){
+  try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
+    if(!raw) return false;
     const data = JSON.parse(raw);
 
-    Object.keys(data).forEach(key => {
-      if (key === "items" || key === "logoDataUrl") return;
-      setField(key, data[key]);
+    Object.keys(data).forEach(k=>{
+      if(k==="items"||k==="logoDataUrl") return;
+      if(k==="shipSameAsCustomer"){
+        const el=document.getElementById("shipSameAsCustomer");
+        if(el) el.checked = !!data[k];
+        return;
+      }
+      setField(k, data[k]);
     });
 
-    if (data.logoDataUrl) logoDataUrl = data.logoDataUrl;
+    logoDataUrl = data.logoDataUrl || "";
 
-    itemsBody.innerHTML = "";
-    if (Array.isArray(data.items) && data.items.length) {
-      data.items.forEach(it => addRow(it, true));
-    } else {
-      addRow({ desc: "Product / Item", hsn: "", qty: 1, unit: "pcs", rate: 0 }, true);
+    itemsBody.innerHTML="";
+    if(Array.isArray(data.items)&&data.items.length){
+      data.items.forEach(it=>addRow(it,true));
+    }else{
+      addRow({desc:"Product / Item",hsn:"",qty:1,unit:"pcs",rate:0},true);
     }
 
-    setTodayIfEmpty();
+    syncShipToFromCustomer();
     recalc();
     return true;
-  } catch (e) {
+  }catch(e){
     return false;
   }
 }
 
-function clearStorageAndReset() {
-  localStorage.removeItem(STORAGE_KEY);
-  logoDataUrl = "";
-  if (logoInput) logoInput.value = "";
+function setTodayIfEmpty(){
+  const el=document.getElementById("invoiceDate");
+  if(el && !el.value){
+    const d=new Date();
+    const yyyy=d.getFullYear();
+    const mm=String(d.getMonth()+1).padStart(2,"0");
+    const dd=String(d.getDate()).padStart(2,"0");
+    el.value = `${yyyy}-${mm}-${dd}`;
+  }
+}
 
-  // reset inputs
-  document.querySelectorAll("input, select, textarea").forEach(el => {
-    if (el.id === "invoiceDate") return;
-    if (el.id === "exportChargesTotal") return;
-    if (el.type === "file") return;
-    if (el.tagName === "SELECT") { el.selectedIndex = 0; return; }
-    el.value = "";
+function clearStorageAndReset(){
+  localStorage.removeItem(STORAGE_KEY);
+  logoDataUrl="";
+  if(logoInput) logoInput.value="";
+
+  document.querySelectorAll("input,select,textarea").forEach(el=>{
+    if(el.id==="invoiceDate") return;
+    if(el.id==="exportChargesTotal") return;
+    if(el.type==="file") return;
+    if(el.type==="checkbox"){ el.checked=false; return; }
+    if(el.tagName==="SELECT"){ el.selectedIndex=0; return; }
+    el.value="";
   });
 
-  // defaults
-  setField("currency", "USD");
-  setField("countryOrigin", "India");
-  setField("igstRate", "0");
-  setField("cgstRate", "0");
-  setField("sgstRate", "0");
-  setField("extraTax", "0");
-  setField("discount", "0");
-  setField("packingCharges", "0");
-  setField("freightCharges", "0");
-  setField("insuranceCharges", "0");
-  setField("otherCharges", "0");
+  setField("currency","USD");
+  setField("countryOrigin","India");
+  setField("igstRate","0");
+  setField("cgstRate","0");
+  setField("sgstRate","0");
+  setField("extraTax","0");
+  setField("discount","0");
+  setField("packingCharges","0");
+  setField("freightCharges","0");
+  setField("insuranceCharges","0");
+  setField("otherCharges","0");
 
-  itemsBody.innerHTML = "";
-  addRow({ desc: "Product / Item", hsn: "", qty: 1, unit: "pcs", rate: 0 }, true);
+  const sameEl=document.getElementById("shipSameAsCustomer");
+  if(sameEl) sameEl.checked=true;
+
+  itemsBody.innerHTML="";
+  addRow({desc:"Product / Item",hsn:"",qty:1,unit:"pcs",rate:0},true);
 
   setTodayIfEmpty();
+  syncShipToFromCustomer();
   recalc();
   saveToStorage();
 }
 
-// =====================
-// Logo upload
-// =====================
-if (logoInput) {
-  logoInput.addEventListener("change", (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      logoDataUrl = String(reader.result || "");
-      saveToStorage();
-      alert("Logo added ✅ Saved.");
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-// =====================
-// Items rows
-// =====================
-function addRow(data = {}, skipSave = false) {
-  const tr = document.createElement("tr");
-
+// ---------- Items ----------
+function addRow(data={}, skipSave=false){
+  const tr=document.createElement("tr");
   tr.innerHTML = `
     <td><input class="desc" placeholder="Item / Product description" value="${data.desc ?? ""}"></td>
     <td><input class="hsn" placeholder="HSN/HS" value="${data.hsn ?? ""}"></td>
@@ -264,189 +251,194 @@ function addRow(data = {}, skipSave = false) {
     <td><input class="amt" type="number" step="0.01" value="0" readonly></td>
     <td><button class="removeBtn">Remove</button></td>
   `;
-
-  tr.querySelector(".removeBtn").addEventListener("click", () => {
+  tr.querySelector(".removeBtn").addEventListener("click", ()=>{
     tr.remove();
     recalc();
     saveToStorage();
   });
 
-  const watch = (sel) => {
-    const el = tr.querySelector(sel);
-    ["input", "change"].forEach(evt => el.addEventListener(evt, () => {
-      recalc();
-      saveToStorage();
-    }));
-  };
-  watch(".qty");
-  watch(".rate");
-
-  // non-calc fields still should save
-  [".desc",".hsn",".unit"].forEach(sel => {
-    const el = tr.querySelector(sel);
-    ["input","change"].forEach(evt => el.addEventListener(evt, () => saveToStorage()));
+  ["input","change"].forEach(evt=>{
+    tr.querySelector(".qty").addEventListener(evt, ()=>{ recalc(); saveToStorage(); });
+    tr.querySelector(".rate").addEventListener(evt, ()=>{ recalc(); saveToStorage(); });
+    tr.querySelector(".desc").addEventListener(evt, saveToStorage);
+    tr.querySelector(".hsn").addEventListener(evt, saveToStorage);
+    tr.querySelector(".unit").addEventListener(evt, saveToStorage);
   });
 
   itemsBody.appendChild(tr);
   recalc();
-  if (!skipSave) saveToStorage();
+  if(!skipSave) saveToStorage();
 }
 
-function computeExportCharges() {
-  const packing = toNum(packingChargesEl.value);
-  const freight = toNum(freightChargesEl.value);
-  const insurance = toNum(insuranceChargesEl.value);
-  const other = toNum(otherChargesEl.value);
-  const total = packing + freight + insurance + other;
-  exportChargesTotalEl.value = money(total);
+function computeExportCharges(){
+  const packing=toNum(packingChargesEl.value);
+  const freight=toNum(freightChargesEl.value);
+  const insurance=toNum(insuranceChargesEl.value);
+  const other=toNum(otherChargesEl.value);
+  const total=packing+freight+insurance+other;
+  exportChargesTotalEl.value=money(total);
   return total;
 }
 
-function recalc() {
-  let itemsSubtotal = 0;
-
-  [...itemsBody.querySelectorAll("tr")].forEach(tr => {
-    const qty = toNum(tr.querySelector(".qty").value);
-    const rate = toNum(tr.querySelector(".rate").value);
-    const amt = qty * rate;
-    tr.querySelector(".amt").value = money(amt);
-    itemsSubtotal += amt;
+function recalc(){
+  let itemsSubtotal=0;
+  [...itemsBody.querySelectorAll("tr")].forEach(tr=>{
+    const qty=toNum(tr.querySelector(".qty").value);
+    const rate=toNum(tr.querySelector(".rate").value);
+    const amt=qty*rate;
+    tr.querySelector(".amt").value=money(amt);
+    itemsSubtotal+=amt;
   });
 
-  const discount = toNum(discountEl.value);
-  const exportChargesTotal = computeExportCharges();
-  const taxableBase = Math.max(0, itemsSubtotal - discount) + exportChargesTotal;
+  const discount=toNum(discountEl.value);
+  const exportChargesTotal=computeExportCharges();
+  const taxableBase=Math.max(0, itemsSubtotal - discount) + exportChargesTotal;
 
-  const gstType = gstTypeEl.value;
-  const igstRate = toNum(igstRateEl.value);
-  const cgstRate = toNum(cgstRateEl.value);
-  const sgstRate = toNum(sgstRateEl.value);
+  const gstType=gstTypeEl.value;
+  const igstRate=toNum(igstRateEl.value);
+  const cgstRate=toNum(cgstRateEl.value);
+  const sgstRate=toNum(sgstRateEl.value);
 
-  let igst = 0, cgst = 0, sgst = 0;
-  if (gstType === "IGST") igst = taxableBase * (igstRate / 100);
-  else if (gstType === "CGST_SGST") {
-    cgst = taxableBase * (cgstRate / 100);
-    sgst = taxableBase * (sgstRate / 100);
+  let igst=0,cgst=0,sgst=0;
+  if(gstType==="IGST") igst=taxableBase*(igstRate/100);
+  else if(gstType==="CGST_SGST"){
+    cgst=taxableBase*(cgstRate/100);
+    sgst=taxableBase*(sgstRate/100);
   }
 
-  const gstTotal = igst + cgst + sgst;
-  const extraTax = toNum(extraTaxEl.value);
-  const grandTotal = taxableBase + gstTotal + extraTax;
+  const gstTotal=igst+cgst+sgst;
+  const extraTax=toNum(extraTaxEl.value);
+  const grandTotal=taxableBase+gstTotal+extraTax;
 
-  itemsSubtotalEl.textContent = money(itemsSubtotal);
-  taxableBaseEl.textContent = money(taxableBase);
-  gstTotalEl.textContent = money(gstTotal);
-  extraTaxViewEl.textContent = money(extraTax);
-  grandTotalEl.textContent = money(grandTotal);
+  itemsSubtotalEl.textContent=money(itemsSubtotal);
+  taxableBaseEl.textContent=money(taxableBase);
+  gstTotalEl.textContent=money(gstTotal);
+  extraTaxViewEl.textContent=money(extraTax);
+  grandTotalEl.textContent=money(grandTotal);
 }
 
-// =====================
-// Date default
-// =====================
-function setTodayIfEmpty() {
-  const el = document.getElementById("invoiceDate");
-  if (el && !el.value) {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    el.value = `${yyyy}-${mm}-${dd}`;
-  }
+// ---------- Logo upload ----------
+if(logoInput){
+  logoInput.addEventListener("change",(e)=>{
+    const file=e.target.files?.[0];
+    if(!file) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      logoDataUrl=String(r.result||"");
+      saveToStorage();
+      alert("Logo added ✅ Saved.");
+    };
+    r.readAsDataURL(file);
+  });
 }
 
-// =====================
-// Init + Listeners
-// =====================
+// ---------- Listeners ----------
 [
-  discountEl,
-  extraTaxEl,
-  packingChargesEl,
-  freightChargesEl,
-  insuranceChargesEl,
-  otherChargesEl,
-  gstTypeEl,
-  igstRateEl,
-  cgstRateEl,
-  sgstRateEl
-].forEach(el => el.addEventListener("input", () => { recalc(); saveToStorage(); }));
+  discountEl, extraTaxEl, packingChargesEl, freightChargesEl, insuranceChargesEl, otherChargesEl,
+  gstTypeEl, igstRateEl, cgstRateEl, sgstRateEl
+].forEach(el=>el?.addEventListener("input", ()=>{ recalc(); saveToStorage(); }));
 
-gstTypeEl.addEventListener("change", () => { recalc(); saveToStorage(); });
+gstTypeEl?.addEventListener("change", ()=>{ recalc(); saveToStorage(); });
 
-if (addRowBtn) addRowBtn.addEventListener("click", () => addRow());
+addRowBtn?.addEventListener("click", ()=>addRow());
 
-if (saveBtn) saveBtn.addEventListener("click", () => { saveToStorage(); alert("Saved ✅"); });
+saveBtn?.addEventListener("click", ()=>{ saveToStorage(); alert("Saved ✅"); });
 
-if (clearBtn) clearBtn.addEventListener("click", () => {
-  const ok = confirm("Clear all saved data?");
-  if (ok) clearStorageAndReset();
+clearBtn?.addEventListener("click", ()=>{
+  const ok=confirm("Clear all saved data?");
+  if(ok) clearStorageAndReset();
 });
 
-// Print = SAME PDF layout (open PDF in new tab then print)
-if (printBtn) {
-  printBtn.addEventListener("click", () => {
-    try {
-      saveToStorage();
-
-      const doc = buildPdf(true); // return pdf only
-      const blobUrl = doc.output("bloburl");
-      const w = window.open(blobUrl, "_blank");
-
-      if (!w) {
-        alert("Popup blocked. Please allow popups and try again.");
-        return;
-      }
-
-      w.onload = () => {
-        w.focus();
-        w.print();
-      };
-    } catch (e) {
-      console.error(e);
-      alert("Print error. Please try again.");
-    }
-  });
-}
-
-// Auto-save for all inputs/selects/textareas
-document.addEventListener("input", (e) => {
-  const t = e.target;
-  if (!t) return;
-  if (t.id === "exportChargesTotal") return;
-  if (t.type === "file") return;
+shipSameAsCustomerEl?.addEventListener("change", ()=>{
+  syncShipToFromCustomer();
   saveToStorage();
 });
 
-(function init() {
+["buyerName","buyerAddress","buyerCountry","buyerContact"].forEach(id=>{
+  const el=document.getElementById(id);
+  el?.addEventListener("input", ()=>{
+    syncShipToFromCustomer();
+    saveToStorage();
+  });
+});
+
+document.addEventListener("input",(e)=>{
+  const t=e.target;
+  if(!t) return;
+  if(t.id==="exportChargesTotal") return;
+  if(t.type==="file") return;
+  saveToStorage();
+});
+
+// ---------- INIT ----------
+(function init(){
   const loaded = loadFromStorage();
-  if (!loaded) {
-    itemsBody.innerHTML = "";
-    addRow({ desc: "Product / Item", hsn: "", qty: 1, unit: "pcs", rate: 0 }, true);
-
+  if(!loaded){
+    itemsBody.innerHTML="";
+    addRow({desc:"Product / Item",hsn:"",qty:1,unit:"pcs",rate:0},true);
     setTodayIfEmpty();
-    setField("currency", "USD");
-    setField("countryOrigin", "India");
-    setField("igstRate", "0");
-    setField("cgstRate", "0");
-    setField("sgstRate", "0");
-    setField("extraTax", "0");
-    setField("discount", "0");
-    setField("packingCharges", "0");
-    setField("freightCharges", "0");
-    setField("insuranceCharges", "0");
-    setField("otherCharges", "0");
 
+    const sameEl=document.getElementById("shipSameAsCustomer");
+    if(sameEl) sameEl.checked=true;
+
+    setField("currency","USD");
+    setField("countryOrigin","India");
+    setField("igstRate","0");
+    setField("cgstRate","0");
+    setField("sgstRate","0");
+    setField("extraTax","0");
+    setField("discount","0");
+    setField("packingCharges","0");
+    setField("freightCharges","0");
+    setField("insuranceCharges","0");
+    setField("otherCharges","0");
+
+    syncShipToFromCustomer();
     recalc();
     saveToStorage();
+  } else {
+    syncShipToFromCustomer();
   }
 })();
 
-// =====================
-// PDF (Professional + Amount in Words)
-// returnDocOnly=true => return doc instead of saving
-// =====================
-function buildPdf(returnDocOnly = false) {
+// ---------- Custom Fonts register ----------
+function registerCustomFonts(doc){
+  // Fonts must be provided via fonts.js -> window.__FONTS__
+  // Base64 must be raw base64 (no data: prefix)
+  try{
+    const f = window.__FONTS__ || {};
+    if(f.ITCAvant){
+      doc.addFileToVFS("ITCAvant.ttf", f.ITCAvant);
+      doc.addFont("ITCAvant.ttf", "ITCAvant", "normal");
+      doc.addFont("ITCAvant.ttf", "ITCAvant", "bold");
+    }
+    if(f.TTFors){
+      doc.addFileToVFS("TTFors.ttf", f.TTFors);
+      doc.addFont("TTFors.ttf", "TTFors", "normal");
+      doc.addFont("TTFors.ttf", "TTFors", "bold");
+    }
+  }catch(e){
+    console.warn("Font load failed, using default.", e);
+  }
+}
+
+// Helpers to set fonts safely (fallback if missing)
+function setHeadingFont(doc, style="bold"){
+  try{ doc.setFont("ITCAvant", style); }
+  catch(e){ doc.setFont(undefined, style); }
+}
+function setBodyFont(doc, style="normal"){
+  try{ doc.setFont("TTFors", style); }
+  catch(e){ doc.setFont(undefined, style); }
+}
+
+// ---------- PDF ----------
+function buildPdf(returnDocOnly=false){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const doc = new jsPDF({ unit:"pt", format:"a4" });
+
+  // Register fonts once per document
+  registerCustomFonts(doc);
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -456,140 +448,155 @@ function buildPdf(returnDocOnly = false) {
   const invoiceNo = getField("invoiceNo");
   const invoiceDate = getField("invoiceDate");
   const currency = (getField("currency") || "USD").toUpperCase();
+
+  // Header background
+  doc.setFillColor(245,245,250);
+  doc.rect(0,0,pageW,100,"F");
+
+  // Logo size: 5.77cm x 0.85cm
+  const logoW = cmToPt(5.77);
+  const logoH = cmToPt(0.85);
+  const logoX = margin;
+  const logoY = 26;
+
+  if(logoDataUrl){
+    try{ doc.addImage(logoDataUrl, "PNG", logoX, logoY, logoW, logoH); }
+    catch(e){ try{ doc.addImage(logoDataUrl, "JPEG", logoX, logoY, logoW, logoH);}catch(_){} }
+  }
+
+  // Title RIGHT (Heading font)
+  doc.setTextColor(20);
+  setHeadingFont(doc, "bold");
+  doc.setFontSize(16);
+  doc.text(docType, pageW - margin, 44, { align:"right" });
+
+  // Info box under title
+  const infoW = 220;
+  const infoH = 54;
+  const infoX = pageW - margin - infoW;
+  const infoY = 56;
+  drawBox(doc, infoX, infoY, infoW, infoH);
+
+  setBodyFont(doc, "normal");
+  doc.setFontSize(10);
+  doc.text(`Invoice No: ${safeText(invoiceNo)}`, infoX+12, infoY+20);
+  doc.text(`Date: ${safeText(invoiceDate)}`, infoX+12, infoY+36);
+  doc.text(`Currency: ${currency}`, infoX+12, infoY+52);
+
+  // Terms
   const paymentTerms = getField("paymentTerms");
   const incoterms = getField("incoterms");
   const termsBasis = getField("termsBasis");
-  const placeOfSupply = getField("placeOfSupply");
 
-  const gstType = getField("gstType");
-  const igstRate = getField("igstRate");
-  const cgstRate = getField("cgstRate");
-  const sgstRate = getField("sgstRate");
-
-  const sellerName = getField("sellerName");
-  const sellerAddress = getField("sellerAddress");
-  const sellerTax = getField("sellerTax");
-  const sellerPan = getField("sellerPan");
-  const sellerIec = getField("sellerIec");
-  const sellerContact = getField("sellerContact");
-
-  const buyerName = getField("buyerName");
-  const buyerAddress = getField("buyerAddress");
-  const buyerCountry = getField("buyerCountry");
-  const buyerTax = getField("buyerTax");
-  const buyerContact = getField("buyerContact");
-
-  const portLoading = getField("portLoading");
-  const portDischarge = getField("portDischarge");
-  const finalDestination = getField("finalDestination");
-  const countryOrigin = getField("countryOrigin");
-  const shipmentMode = getField("shipmentMode");
-  const defaultHs = getField("defaultHs");
-  const validity = getField("validity");
-
-  const packing = money(toNum(packingChargesEl.value));
-  const freight = money(toNum(freightChargesEl.value));
-  const insurance = money(toNum(insuranceChargesEl.value));
-  const other = money(toNum(otherChargesEl.value));
-  const exportChargesTotal = money(toNum(exportChargesTotalEl.value));
-
-  const bankDetails = getField("bankDetails");
-  const notes = getField("notes");
-
-  // Header band
-  doc.setFillColor(245, 245, 250);
-  doc.rect(0, 0, pageW, 92, "F");
-
-  // Logo
-  if (logoDataUrl) {
-    try { doc.addImage(logoDataUrl, "PNG", margin, 18, 92, 46); }
-    catch (e) {
-      try { doc.addImage(logoDataUrl, "JPEG", margin, 18, 92, 46); } catch (_) {}
-    }
-  }
-
-  doc.setTextColor(20);
-  doc.setFontSize(16);
-  doc.text(docType, pageW / 2, 42, { align: "center" });
-
-  // Right info box
-  const rightX = pageW - margin - 230;
-  drawBox(doc, rightX, 18, 230, 58);
+  setBodyFont(doc, "normal");
   doc.setFontSize(10);
-  doc.text(`Invoice No: ${invoiceNo || "-"}`, rightX + 12, 40);
-  doc.text(`Date: ${invoiceDate || "-"}`, rightX + 12, 55);
-  doc.text(`Currency: ${currency}`, rightX + 12, 70);
+  doc.text(`Payment Terms: ${safeText(paymentTerms)}`, margin, 130);
+  doc.text(`Incoterms: ${safeText(incoterms)} | Terms Basis: ${safeText(termsBasis)}`, margin, 146);
 
-  // Terms
-  doc.setFontSize(10);
-  doc.text(`Payment Terms: ${paymentTerms || "-"}`, margin, 112);
-  doc.text(`Incoterms: ${incoterms || "-"} | Terms Basis: ${termsBasis || "-"}`, margin, 128);
+  // SELLER upar (FULL WIDTH)
+  const startY = 165;
+  const sellerBoxH = 85;
 
-  // Seller / Buyer boxes
-  const boxY = 145;
-  const boxH = 110;
+  drawBox(doc, margin, startY, pageW - margin * 2, sellerBoxH);
+
+  setHeadingFont(doc, "bold");
+  doc.setFontSize(11);
+  doc.text("SELLER (YOUR COMPANY)", margin + 12, startY + 18);
+
+  setBodyFont(doc, "normal");
+  doc.setFontSize(9);
+
+  const sellerAdCode = getField("sellerAdCode");
+  const sellerText = [
+    getField("sellerName"),
+    getField("sellerAddress"),
+    getField("sellerTax") ? `GST/VAT: ${getField("sellerTax")}` : "",
+    getField("sellerPan") ? `PAN: ${getField("sellerPan")}` : "",
+    getField("sellerIec") ? `IEC: ${getField("sellerIec")}` : "",
+    sellerAdCode ? `AD Code: ${sellerAdCode}` : "",
+    getField("sellerContact")
+  ].filter(Boolean).join(" | ") || "-";
+
+  doc.text(sellerText, margin + 12, startY + 40, { maxWidth: pageW - margin * 2 - 24 });
+
+  // CUSTOMER | SHIP TO niche
+  const rowY = startY + sellerBoxH + 12;
   const gap = 14;
+  const boxH = 120;
   const boxW = (pageW - margin * 2 - gap) / 2;
 
-  drawBox(doc, margin, boxY, boxW, boxH);
-  drawBox(doc, margin + boxW + gap, boxY, boxW, boxH);
+  // CUSTOMER
+  const custX = margin;
+  drawBox(doc, custX, rowY, boxW, boxH);
 
+  setHeadingFont(doc, "bold");
   doc.setFontSize(11);
-  doc.text("SELLER", margin + 12, boxY + 18);
-  doc.setFontSize(9);
-  doc.text(
-    [
-      sellerName,
-      sellerAddress,
-      sellerTax ? `GST/VAT: ${sellerTax}` : "",
-      sellerPan ? `PAN: ${sellerPan}` : "",
-      sellerIec ? `IEC: ${sellerIec}` : "",
-      sellerContact
-    ].filter(Boolean).join("\n") || "-",
-    margin + 12, boxY + 34,
-    { maxWidth: boxW - 24 }
-  );
+  doc.text("CUSTOMER", custX + 12, rowY + 18);
 
+  setBodyFont(doc, "normal");
+  doc.setFontSize(9);
+
+  const custText = [
+    getField("buyerName"),
+    getField("buyerAddress"),
+    getField("buyerCountry") ? `Country: ${getField("buyerCountry")}` : "",
+    getField("buyerTax") ? `Tax ID: ${getField("buyerTax")}` : "",
+    getField("buyerContact")
+  ].filter(Boolean).join("\n") || "-";
+
+  doc.text(custText, custX + 12, rowY + 36, { maxWidth: boxW - 24 });
+
+  // SHIP TO
+  const shipX = margin + boxW + gap;
+  drawBox(doc, shipX, rowY, boxW, boxH);
+
+  setHeadingFont(doc, "bold");
   doc.setFontSize(11);
-  doc.text("BUYER", margin + boxW + gap + 12, boxY + 18);
+  doc.text("SHIP TO", shipX + 12, rowY + 18);
+
+  setBodyFont(doc, "normal");
   doc.setFontSize(9);
-  doc.text(
-    [
-      buyerName,
-      buyerAddress,
-      buyerCountry ? `Country: ${buyerCountry}` : "",
-      buyerTax ? `Tax ID: ${buyerTax}` : "",
-      buyerContact
-    ].filter(Boolean).join("\n") || "-",
-    margin + boxW + gap + 12, boxY + 34,
-    { maxWidth: boxW - 24 }
-  );
 
-  // Export & GST box
-  const exY = boxY + boxH + 16;
-  drawBox(doc, margin, exY, pageW - margin * 2, 80);
+  const shipSame = !!document.getElementById("shipSameAsCustomer")?.checked;
+  const shipText = shipSame ? custText : ([
+    getField("shipName"),
+    getField("shipAddress"),
+    getField("shipCountry") ? `Country: ${getField("shipCountry")}` : "",
+    getField("shipContact")
+  ].filter(Boolean).join("\n") || "-");
 
+  doc.text(shipText, shipX + 12, rowY + 36, { maxWidth: boxW - 24 });
+
+  // EXPORT & GST DETAILS (full width)
+  const exY = rowY + boxH + 16;
+  drawBox(doc, margin, exY, pageW - margin*2, 82);
+
+  const gstType = getField("gstType");
   const gstLine =
-    gstType === "IGST" ? `IGST ${igstRate}%` :
-    gstType === "CGST_SGST" ? `CGST ${cgstRate}% + SGST ${sgstRate}%` :
+    gstType === "IGST" ? `IGST ${safeText(getField("igstRate"),"0")}%` :
+    gstType === "CGST_SGST" ? `CGST ${safeText(getField("cgstRate"),"0")}% + SGST ${safeText(getField("sgstRate"),"0")}%` :
     "None (Export LUT)";
 
+  setHeadingFont(doc, "bold");
   doc.setFontSize(11);
-  doc.text("EXPORT & GST DETAILS", margin + 12, exY + 18);
+  doc.text("EXPORT & GST DETAILS", margin+12, exY+18);
 
+  setBodyFont(doc, "normal");
   doc.setFontSize(9);
+
   doc.text(
     [
-      `Port Loading: ${portLoading || "-"}   |   Port Discharge: ${portDischarge || "-"}`,
-      `Final Destination: ${finalDestination || "-"}   |   Mode: ${shipmentMode || "-"}`,
-      `Origin: ${countryOrigin || "-"}   |   Default HS: ${defaultHs || "-"}`,
-      `Place of Supply: ${placeOfSupply || "-"}   |   GST: ${gstLine}   |   Validity: ${validity || "-"}`
+      `Port Loading: ${safeText(getField("portLoading"))}   |   Port Discharge: ${safeText(getField("portDischarge"))}`,
+      `Final Destination: ${safeText(getField("finalDestination"))}   |   Mode: ${safeText(getField("shipmentMode"))}`,
+      `Origin: ${safeText(getField("countryOrigin"))}   |   Default HS: ${safeText(getField("defaultHs"))}`,
+      `Place of Supply: ${safeText(getField("placeOfSupply"))}   |   GST: ${gstLine}   |   Validity: ${safeText(getField("validity"))}`
     ].join("\n"),
-    margin + 12, exY + 36,
-    { maxWidth: pageW - margin * 2 - 24 }
+    margin+12, exY+36,
+    { maxWidth: pageW - margin*2 - 24 }
   );
 
   // Items table
+  const defaultHs = getField("defaultHs");
   const rows = [...itemsBody.querySelectorAll("tr")].map(tr => ([
     tr.querySelector(".desc").value.trim(),
     (tr.querySelector(".hsn").value.trim() || defaultHs || ""),
@@ -601,17 +608,13 @@ function buildPdf(returnDocOnly = false) {
 
   doc.autoTable({
     startY: exY + 95,
-    head: [["Description", "HS Code", "Qty", "Unit", "Rate", "Amount"]],
-    body: rows.length ? rows : [["-", "-", "-", "-", "-", "-"]],
+    head: [["Description","HS Code","Qty","Unit","Rate","Amount"]],
+    body: rows.length ? rows : [["-","-","-","-","-","-"]],
     theme: "grid",
-    styles: { fontSize: 9, cellPadding: 6, lineColor: [220, 220, 230], lineWidth: 0.6 },
-    headStyles: { fillColor: [245, 245, 250], textColor: 20, fontStyle: "bold" },
-    alternateRowStyles: { fillColor: [252, 252, 255] },
-    columnStyles: {
-      2: { halign: "right", cellWidth: 48 },
-      4: { halign: "right", cellWidth: 62 },
-      5: { halign: "right", cellWidth: 78 }
-    },
+    styles: { fontSize: 9, cellPadding: 6, lineColor: [220,220,230], lineWidth: 0.6 },
+    headStyles: { fillColor: [245,245,250], textColor: 20, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [252,252,255] },
+    columnStyles: { 2:{halign:"right",cellWidth:48}, 4:{halign:"right",cellWidth:62}, 5:{halign:"right",cellWidth:78} },
     margin: { left: margin, right: margin }
   });
 
@@ -623,104 +626,111 @@ function buildPdf(returnDocOnly = false) {
   const gstTotal = gstTotalEl.textContent;
   const extraTax = extraTaxViewEl.textContent;
   const grand = grandTotalEl.textContent;
-
   const inWords = amountInWords(toNum(grand), currency);
 
-  // =====================
-  // CHARGES + TOTALS (NO OVERLAP FIX)
-  // =====================
+  // Two boxes (NO overlap)
   const boxGap2 = 14;
-  const halfW = (pageW - margin * 2 - boxGap2) / 2;
+  const dualW = (pageW - margin*2 - boxGap2) / 2;
   const leftX = margin;
-  const rightBoxX = margin + halfW + boxGap2;
+  const rightX = margin + dualW + boxGap2;
+  const rightEdge = rightX + dualW - 12;
 
-  drawBox(doc, leftX, y, halfW, 120);
+  drawBox(doc, leftX, y, dualW, 120);
+  setHeadingFont(doc, "bold");
   doc.setFontSize(10);
-  doc.text("EXPORT CHARGES BREAKDOWN", leftX + 12, y + 18);
+  doc.text("EXPORT CHARGES BREAKDOWN", leftX+12, y+18);
+
+  setBodyFont(doc, "normal");
   doc.setFontSize(9);
-  doc.text(`Packing: ${currency} ${packing}`, leftX + 12, y + 40);
-  doc.text(`Freight: ${currency} ${freight}`, leftX + 12, y + 56);
-  doc.text(`Insurance: ${currency} ${insurance}`, leftX + 12, y + 72);
-  doc.text(`Other: ${currency} ${other}`, leftX + 12, y + 88);
-  doc.text(`Total: ${currency} ${exportChargesTotal}`, leftX + 12, y + 106);
+  doc.text(`Packing: ${currency} ${money(toNum(packingChargesEl.value))}`, leftX+12, y+40);
+  doc.text(`Freight: ${currency} ${money(toNum(freightChargesEl.value))}`, leftX+12, y+56);
+  doc.text(`Insurance: ${currency} ${money(toNum(insuranceChargesEl.value))}`, leftX+12, y+72);
+  doc.text(`Other: ${currency} ${money(toNum(otherChargesEl.value))}`, leftX+12, y+88);
+  doc.text(`Total: ${currency} ${money(toNum(exportChargesTotalEl.value))}`, leftX+12, y+106);
 
-  drawBox(doc, rightBoxX, y, halfW, 120);
-  const rightTextX = rightBoxX + 12;
-  const rightValueX = rightBoxX + halfW - 12;
+  drawBox(doc, rightX, y, dualW, 120);
 
+  setBodyFont(doc, "normal");
   doc.setFontSize(10);
-  doc.text("Items Subtotal", rightTextX, y + 28);
-  doc.text(`${currency} ${itemsSubtotal}`, rightValueX, y + 28, { align: "right" });
+  doc.text("Items Subtotal", rightX+12, y+28);
+  doc.text(`${currency} ${itemsSubtotal}`, rightEdge, y+28, {align:"right"});
+  doc.text("Taxable Base", rightX+12, y+48);
+  doc.text(`${currency} ${taxableBase}`, rightEdge, y+48, {align:"right"});
+  doc.text("GST Total", rightX+12, y+68);
+  doc.text(`${currency} ${gstTotal}`, rightEdge, y+68, {align:"right"});
+  doc.text("Extra Tax", rightX+12, y+88);
+  doc.text(`${currency} ${extraTax}`, rightEdge, y+88, {align:"right"});
 
-  doc.text("Taxable Base", rightTextX, y + 48);
-  doc.text(`${currency} ${taxableBase}`, rightValueX, y + 48, { align: "right" });
+  setHeadingFont(doc, "bold");
+  doc.text("GRAND TOTAL", rightX+12, y+110);
+  doc.text(`${currency} ${grand}`, rightEdge, y+110, {align:"right"});
 
-  doc.text("GST Total", rightTextX, y + 68);
-  doc.text(`${currency} ${gstTotal}`, rightValueX, y + 68, { align: "right" });
-
-  doc.text("Extra Tax", rightTextX, y + 88);
-  doc.text(`${currency} ${extraTax}`, rightValueX, y + 88, { align: "right" });
-
-  doc.setFont(undefined, "bold");
-  doc.text("GRAND TOTAL", rightTextX, y + 110);
-  doc.text(`${currency} ${grand}`, rightValueX, y + 110, { align: "right" });
-  doc.setFont(undefined, "normal");
-
-  // Amount in Words box
+  // Amount in words
   const wordsY = y + 135;
-  drawBox(doc, margin, wordsY, pageW - margin * 2, 45);
+  drawBox(doc, margin, wordsY, pageW - margin*2, 45);
+
+  setHeadingFont(doc, "bold");
   doc.setFontSize(10);
-  doc.text("AMOUNT IN WORDS", margin + 12, wordsY + 18);
+  doc.text("AMOUNT IN WORDS", margin+12, wordsY+18);
+
+  setBodyFont(doc, "normal");
   doc.setFontSize(9);
-  doc.text(inWords, margin + 12, wordsY + 35, { maxWidth: pageW - margin * 2 - 24 });
+  doc.text(inWords, margin+12, wordsY+35, {maxWidth: pageW - margin*2 - 24});
 
   // Bank / Notes
   let bnY = wordsY + 60;
   if (bnY > pageH - 220) { doc.addPage(); bnY = 60; }
 
-  drawBox(doc, margin, bnY, pageW - margin * 2, 90);
+  drawBox(doc, margin, bnY, pageW - margin*2, 90);
+
+  setHeadingFont(doc, "bold");
   doc.setFontSize(10);
-  doc.text("BANK DETAILS", margin + 12, bnY + 18);
+  doc.text("BANK DETAILS", margin+12, bnY+18);
+
+  setBodyFont(doc, "normal");
   doc.setFontSize(9);
-  doc.text(bankDetails || "As per company bank details on record.", margin + 12, bnY + 36, {
-    maxWidth: pageW - margin * 2 - 24
+  doc.text(getField("bankDetails") || "As per company bank details on record.", margin+12, bnY+36, {
+    maxWidth: pageW - margin*2 - 24
   });
 
-  drawBox(doc, margin, bnY + 100, pageW - margin * 2, 80);
+  drawBox(doc, margin, bnY+100, pageW - margin*2, 80);
+
+  setHeadingFont(doc, "bold");
   doc.setFontSize(10);
-  doc.text("NOTES", margin + 12, bnY + 118);
+  doc.text("NOTES", margin+12, bnY+118);
+
+  setBodyFont(doc, "normal");
   doc.setFontSize(9);
-  doc.text(notes || "-", margin + 12, bnY + 136, { maxWidth: pageW - margin * 2 - 24 });
+  doc.text(getField("notes") || "-", margin+12, bnY+136, {maxWidth: pageW - margin*2 - 24});
 
-  // Signature
-  const sigY = bnY + 190;
-  if (sigY < pageH - 70) {
-    drawBox(doc, margin, sigY, 260, 60);
-    doc.setFontSize(10);
-    doc.text("Authorized Signatory", margin + 12, sigY + 22);
-    doc.setTextColor(120);
-    doc.setFontSize(9);
-    doc.text("(Signature & Stamp)", margin + 12, sigY + 40);
-    doc.setTextColor(20);
-  }
-
-  // Footer
   doc.setFontSize(8);
   doc.setTextColor(120);
+  setBodyFont(doc, "normal");
   doc.text("This is a computer generated document.", margin, pageH - 18);
   doc.setTextColor(20);
 
-  const safeName = (invoiceNo || docType).replace(/[^\w\-]+/g, "_");
-
-  if (returnDocOnly) return doc;
+  const safeName = (invoiceNo || docType).replace(/[^\w\-]+/g,"_");
+  if(returnDocOnly) return doc;
   doc.save(`${safeName}.pdf`);
   return doc;
 }
 
-// Download PDF (also saves first)
-if (downloadPdfBtn) {
-  downloadPdfBtn.addEventListener("click", () => {
-    saveToStorage();
-    buildPdf(false);
+// Print = PDF style print
+if(printBtn){
+  printBtn.addEventListener("click", ()=>{
+    try{
+      saveToStorage();
+      const doc = buildPdf(true);
+      const url = doc.output("bloburl");
+      const w = window.open(url, "_blank");
+      if(!w){ alert("Popup blocked. Allow popups and try again."); return; }
+      w.onload = ()=>{ w.focus(); w.print(); };
+    }catch(e){
+      console.error(e);
+      alert("Print error. Please try again.");
+    }
   });
 }
+
+// Download PDF
+downloadPdfBtn?.addEventListener("click", ()=>{ saveToStorage(); buildPdf(false); });
