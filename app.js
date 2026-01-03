@@ -2,6 +2,7 @@
 // State
 // =====================
 let logoDataUrl = ""; // base64 logo
+const STORAGE_KEY = "invoice_site_v1";
 
 // =====================
 // DOM
@@ -9,6 +10,10 @@ let logoDataUrl = ""; // base64 logo
 const itemsBody = document.getElementById("itemsBody");
 const addRowBtn = document.getElementById("addRowBtn");
 const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+
+const saveBtn = document.getElementById("saveBtn");
+const printBtn = document.getElementById("printBtn");
+const clearBtn = document.getElementById("clearBtn");
 
 const itemsSubtotalEl = document.getElementById("itemsSubtotal");
 const taxableBaseEl = document.getElementById("taxableBase");
@@ -44,6 +49,11 @@ function money(n) {
 }
 function getField(id) {
   return (document.getElementById(id)?.value ?? "").trim();
+}
+function setField(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = value ?? "";
 }
 function drawBox(doc, x, y, w, h) {
   doc.setDrawColor(210);
@@ -120,6 +130,110 @@ function amountInWords(total, currencyCode) {
 }
 
 // =====================
+// Auto-save (localStorage)
+// =====================
+function collectFormState() {
+  const ids = [
+    "docType","invoiceNo","invoiceDate","currency","paymentTerms","incoterms","placeOfSupply",
+    "gstType","igstRate","cgstRate","sgstRate","extraTax",
+    "sellerName","sellerAddress","sellerTax","sellerPan","sellerIec","sellerContact",
+    "buyerName","buyerAddress","buyerCountry","buyerTax","buyerContact",
+    "portLoading","portDischarge","finalDestination","countryOrigin","shipmentMode","defaultHs","termsBasis","validity",
+    "packingCharges","freightCharges","insuranceCharges","otherCharges","discount",
+    "bankDetails","notes"
+  ];
+
+  const data = {};
+  ids.forEach(id => data[id] = getField(id));
+
+  // Items
+  data.items = [...itemsBody.querySelectorAll("tr")].map(tr => ({
+    desc: tr.querySelector(".desc").value,
+    hsn: tr.querySelector(".hsn").value,
+    qty: tr.querySelector(".qty").value,
+    unit: tr.querySelector(".unit").value,
+    rate: tr.querySelector(".rate").value
+  }));
+
+  // Logo
+  data.logoDataUrl = logoDataUrl;
+
+  return data;
+}
+
+function saveToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(collectFormState()));
+  } catch (e) {
+    // storage full or blocked
+  }
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+
+    // fields
+    Object.keys(data).forEach(key => {
+      if (key === "items" || key === "logoDataUrl") return;
+      setField(key, data[key]);
+    });
+
+    // logo
+    if (data.logoDataUrl) logoDataUrl = data.logoDataUrl;
+
+    // items
+    itemsBody.innerHTML = "";
+    if (Array.isArray(data.items) && data.items.length) {
+      data.items.forEach(it => addRow(it, true));
+    } else {
+      addRow({ desc: "Product / Item", hsn: "", qty: 1, unit: "pcs", rate: 0 }, true);
+    }
+
+    recalc();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function clearStorageAndReset() {
+  localStorage.removeItem(STORAGE_KEY);
+  logoDataUrl = "";
+  if (logoInput) logoInput.value = "";
+
+  // Reset fields quickly (keep date to today)
+  document.querySelectorAll("input, select, textarea").forEach(el => {
+    if (el.id === "invoiceDate") return;
+    if (el.id === "exportChargesTotal") return;
+    if (el.type === "file") return;
+    if (el.tagName === "SELECT") { /* reset to first option */ el.selectedIndex = 0; return; }
+    el.value = "";
+  });
+
+  // Default values
+  setField("currency", "USD");
+  setField("countryOrigin", "India");
+  setField("igstRate", "0");
+  setField("cgstRate", "0");
+  setField("sgstRate", "0");
+  setField("extraTax", "0");
+  setField("discount", "0");
+  setField("packingCharges", "0");
+  setField("freightCharges", "0");
+  setField("insuranceCharges", "0");
+  setField("otherCharges", "0");
+
+  itemsBody.innerHTML = "";
+  addRow({ desc: "Product / Item", hsn: "", qty: 1, unit: "pcs", rate: 0 }, true);
+
+  setTodayIfEmpty();
+  recalc();
+}
+
+// =====================
 // Logo upload
 // =====================
 if (logoInput) {
@@ -130,7 +244,8 @@ if (logoInput) {
     const reader = new FileReader();
     reader.onload = () => {
       logoDataUrl = String(reader.result || "");
-      alert("Logo added ✅ Now download PDF again.");
+      saveToStorage();
+      alert("Logo added ✅ Saved.");
     };
     reader.readAsDataURL(file);
   });
@@ -139,7 +254,7 @@ if (logoInput) {
 // =====================
 // Items rows
 // =====================
-function addRow(data = {}) {
+function addRow(data = {}, skipSave = false) {
   const tr = document.createElement("tr");
 
   tr.innerHTML = `
@@ -155,15 +270,20 @@ function addRow(data = {}) {
   tr.querySelector(".removeBtn").addEventListener("click", () => {
     tr.remove();
     recalc();
+    saveToStorage();
   });
 
   ["input", "change"].forEach(evt => {
-    tr.querySelector(".qty").addEventListener(evt, recalc);
-    tr.querySelector(".rate").addEventListener(evt, recalc);
+    tr.querySelector(".qty").addEventListener(evt, () => { recalc(); saveToStorage(); });
+    tr.querySelector(".rate").addEventListener(evt, () => { recalc(); saveToStorage(); });
+    tr.querySelector(".desc").addEventListener(evt, () => { saveToStorage(); });
+    tr.querySelector(".hsn").addEventListener(evt, () => { saveToStorage(); });
+    tr.querySelector(".unit").addEventListener(evt, () => { saveToStorage(); });
   });
 
   itemsBody.appendChild(tr);
   recalc();
+  if (!skipSave) saveToStorage();
 }
 
 function computeExportCharges() {
@@ -197,14 +317,13 @@ function recalc() {
   const sgstRate = toNum(sgstRateEl.value);
 
   let igst = 0, cgst = 0, sgst = 0;
-  if (gstType === "IGST") {
-    igst = taxableBase * (igstRate / 100);
-  } else if (gstType === "CGST_SGST") {
+  if (gstType === "IGST") igst = taxableBase * (igstRate / 100);
+  else if (gstType === "CGST_SGST") {
     cgst = taxableBase * (cgstRate / 100);
     sgst = taxableBase * (sgstRate / 100);
   }
-  const gstTotal = igst + cgst + sgst;
 
+  const gstTotal = igst + cgst + sgst;
   const extraTax = toNum(extraTaxEl.value);
   const grandTotal = taxableBase + gstTotal + extraTax;
 
@@ -215,7 +334,23 @@ function recalc() {
   grandTotalEl.textContent = money(grandTotal);
 }
 
-// listeners
+// =====================
+// Date default
+// =====================
+function setTodayIfEmpty(){
+  const el = document.getElementById("invoiceDate");
+  if (el && !el.value) {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    el.value = `${yyyy}-${mm}-${dd}`;
+  }
+}
+
+// =====================
+// Listeners (save on input)
+// =====================
 [
   discountEl,
   extraTaxEl,
@@ -227,29 +362,58 @@ function recalc() {
   igstRateEl,
   cgstRateEl,
   sgstRateEl
-].forEach(el => el.addEventListener("input", recalc));
+].forEach(el => el.addEventListener("input", () => { recalc(); saveToStorage(); }));
 
-gstTypeEl.addEventListener("change", recalc);
+gstTypeEl.addEventListener("change", () => { recalc(); saveToStorage(); });
 
 addRowBtn.addEventListener("click", () => addRow());
 
-// default row
-addRow({ desc: "Product / Item", hsn: "", qty: 1, unit: "pcs", rate: 0 });
+// Save / Print / Clear buttons
+if (saveBtn) saveBtn.addEventListener("click", () => { saveToStorage(); alert("Saved ✅"); });
+if (printBtn) printBtn.addEventListener("click", () => window.print());
+if (clearBtn) clearBtn.addEventListener("click", () => {
+  const ok = confirm("Clear all saved data?");
+  if (ok) clearStorageAndReset();
+});
 
-// default date
-(function setToday() {
-  const el = document.getElementById("invoiceDate");
-  if (el && !el.value) {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    el.value = `${yyyy}-${mm}-${dd}`;
+// Auto-save for all inputs/selects/textareas
+document.addEventListener("input", (e) => {
+  const t = e.target;
+  if (!t) return;
+  if (t.id === "exportChargesTotal") return;
+  if (t.type === "file") return;
+  saveToStorage();
+});
+
+// =====================
+// Init
+// =====================
+(function init(){
+  // Try load saved data
+  const loaded = loadFromStorage();
+  if (!loaded) {
+    // create default row if nothing
+    itemsBody.innerHTML = "";
+    addRow({ desc: "Product / Item", hsn: "", qty: 1, unit: "pcs", rate: 0 }, true);
+    setTodayIfEmpty();
+    setField("currency", "USD");
+    setField("countryOrigin", "India");
+    setField("igstRate", "0");
+    setField("cgstRate", "0");
+    setField("sgstRate", "0");
+    setField("extraTax", "0");
+    setField("discount", "0");
+    setField("packingCharges", "0");
+    setField("freightCharges", "0");
+    setField("insuranceCharges", "0");
+    setField("otherCharges", "0");
+    recalc();
+    saveToStorage();
   }
 })();
 
 // =====================
-// Professional PDF + Amount in Words
+// PDF (same as your professional version + amount in words)
 // =====================
 function buildPdf() {
   const { jsPDF } = window.jspdf;
@@ -259,7 +423,6 @@ function buildPdf() {
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 40;
 
-  // Fields
   const docType = getField("docType") || "PROFORMA INVOICE";
   const invoiceNo = getField("invoiceNo");
   const invoiceDate = getField("invoiceDate");
@@ -425,11 +588,7 @@ function buildPdf() {
 
   let y = (doc.lastAutoTable.finalY || (exY + 200)) + 14;
 
-  // Totals and charges - prevent overflow
-  if (y > pageH - 320) {
-    doc.addPage();
-    y = 60;
-  }
+  if (y > pageH - 320) { doc.addPage(); y = 60; }
 
   const itemsSubtotal = itemsSubtotalEl.textContent;
   const taxableBase = taxableBaseEl.textContent;
@@ -437,10 +596,9 @@ function buildPdf() {
   const extraTax = extraTaxViewEl.textContent;
   const grand = grandTotalEl.textContent;
 
-  const grandNum = toNum(grand);
-  const inWords = amountInWords(grandNum, currency);
+  const inWords = amountInWords(toNum(grand), currency);
 
-  // Left: Export charges breakdown
+  // Left: Export charges
   drawBox(doc, margin, y, 270, 120);
   doc.setFontSize(10);
   doc.text("EXPORT CHARGES BREAKDOWN", margin + 12, y + 18);
@@ -483,10 +641,7 @@ function buildPdf() {
 
   // Bank / Notes
   let bnY = wordsY + 60;
-  if (bnY > pageH - 220) {
-    doc.addPage();
-    bnY = 60;
-  }
+  if (bnY > pageH - 220) { doc.addPage(); bnY = 60; }
 
   drawBox(doc, margin, bnY, pageW - margin * 2, 90);
   doc.setFontSize(10);
@@ -514,7 +669,6 @@ function buildPdf() {
     doc.setTextColor(20);
   }
 
-  // Footer
   doc.setFontSize(8);
   doc.setTextColor(120);
   doc.text("This is a computer generated document.", margin, pageH - 18);
@@ -524,4 +678,4 @@ function buildPdf() {
   doc.save(`${safeName}.pdf`);
 }
 
-downloadPdfBtn.addEventListener("click", buildPdf);
+downloadPdfBtn.addEventListener("click", () => { saveToStorage(); buildPdf(); });
