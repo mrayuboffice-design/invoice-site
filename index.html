@@ -4,50 +4,58 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>GST + Export Invoice / Proforma Generator</title>
+
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- jsPDF + AutoTable -->
+  <!-- jsPDF + AutoTable (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.3/dist/jspdf.plugin.autotable.min.js"></script>
+
 </head>
 
 <body>
-  <header class="topbar">
-    <h1>GST + Export Invoice / Proforma Generator</h1>
-<div class="actions">
-  <button id="addRowBtn">+ Add Item</button>
-  <button id="saveBtn">💾 Save</button>
-  <button id="printBtn">🖨 Print</button>
-  <button id="clearBtn">🧹 Clear</button>
-  <button id="downloadPdfBtn" class="primary">⬇ Download PDF</button>
-</div>
+  <div class="page">
 
-  </header>
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1>GST + Export Invoice / Proforma Generator</h1>
+        <div class="sub">GST, Export (FOB/CIF), HS Code, Port, Ship To, Logo + PDF</div>
+      </div>
 
-  <main class="container">
+      <div class="topbar-right">
+        <button id="addRowBtn" class="btn">+ Add Item</button>
+        <button id="saveBtn" class="btn">Save</button>
+        <button id="printBtn" class="btn">Print</button>
+        <button id="clearBtn" class="btn btn-light">Clear</button>
+        <button id="downloadPdfBtn" class="btn btn-primary">Download PDF</button>
+      </div>
+    </div>
 
-    <!-- Branding -->
-    <section class="card">
+    <!-- ========== Branding ========== -->
+    <div class="card">
       <h2>Branding</h2>
-      <div class="grid">
+
+      <div class="grid grid-2">
         <div>
           <label>Upload Logo (PNG/JPG)</label>
           <input id="logoInput" type="file" accept="image/png,image/jpeg" />
-          <small class="hint">Logo PDF me top-left aa jayega (recommended: PNG, white background)</small>
+          <div class="hint">Logo PDF top-left (Recommended: PNG with white background)</div>
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- Document -->
-    <section class="card">
+    <!-- ========== Document ========== -->
+    <div class="card">
       <h2>Document</h2>
-      <div class="grid">
+
+      <div class="grid grid-3">
         <div>
           <label>Document Type</label>
           <select id="docType">
-            <option value="PROFORMA INVOICE">PROFORMA INVOICE</option>
-            <option value="TAX INVOICE">TAX INVOICE</option>
-            <option value="COMMERCIAL INVOICE">COMMERCIAL INVOICE</option>
+            <option>PROFORMA INVOICE</option>
+            <option>INVOICE</option>
+            <option>EXPORT INVOICE</option>
+            <option>TAX INVOICE</option>
           </select>
         </div>
 
@@ -77,16 +85,178 @@
         </div>
 
         <div>
+          <label>Terms Basis</label>
+          <input id="termsBasis" placeholder="FOB / CIF / EXW" />
+        </div>
+
+        <div>
           <label>Place of Supply (GST)</label>
           <input id="placeOfSupply" placeholder="State / Country" />
         </div>
 
         <div>
+          <label>Validity</label>
+          <input id="validity" placeholder="e.g., 15 days" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== Parties ========== -->
+    <div class="card">
+      <h2>Seller (Your Company)</h2>
+
+      <div class="grid grid-3">
+        <div>
+          <label>Seller Name</label>
+          <input id="sellerName" placeholder="Company Name" />
+        </div>
+
+        <div>
+          <label>GST / VAT No.</label>
+          <input id="sellerTax" placeholder="GSTIN / VAT" />
+        </div>
+
+        <div>
+          <label>AD Code</label>
+          <input id="sellerAdCode" placeholder="AD Code" />
+        </div>
+
+        <div class="span-2">
+          <label>Seller Address</label>
+          <textarea id="sellerAddress" placeholder="Full Address"></textarea>
+        </div>
+
+        <div>
+          <label>PAN</label>
+          <input id="sellerPan" placeholder="PAN" />
+        </div>
+
+        <div>
+          <label>IEC</label>
+          <input id="sellerIec" placeholder="IEC" />
+        </div>
+
+        <div>
+          <label>Seller Contact</label>
+          <input id="sellerContact" placeholder="Phone / Email" />
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <!-- CUSTOMER -->
+      <div class="card">
+        <h2>Customer</h2>
+
+        <div class="grid grid-2">
+          <div>
+            <label>Customer Name</label>
+            <input id="buyerName" placeholder="Company / Person" />
+          </div>
+
+          <div>
+            <label>Tax ID</label>
+            <input id="buyerTax" placeholder="GST/VAT/Tax ID" />
+          </div>
+
+          <div class="span-2">
+            <label>Customer Address</label>
+            <textarea id="buyerAddress" placeholder="Billing Address"></textarea>
+          </div>
+
+          <div>
+            <label>Country</label>
+            <input id="buyerCountry" placeholder="Country" />
+          </div>
+
+          <div>
+            <label>Contact</label>
+            <input id="buyerContact" placeholder="Phone / Email" />
+          </div>
+        </div>
+      </div>
+
+      <!-- SHIP TO -->
+      <div class="card">
+        <h2>Ship To</h2>
+
+        <label class="checkbox">
+          <input type="checkbox" id="shipSameAsCustomer" checked />
+          Same as Customer
+        </label>
+
+        <div class="grid grid-2">
+          <div class="span-2">
+            <label>Ship To Name</label>
+            <input id="shipName" placeholder="Company / Person" />
+          </div>
+
+          <div class="span-2">
+            <label>Ship To Address</label>
+            <textarea id="shipAddress" placeholder="Shipping Address"></textarea>
+          </div>
+
+          <div>
+            <label>Country</label>
+            <input id="shipCountry" placeholder="Country" />
+          </div>
+
+          <div>
+            <label>Contact</label>
+            <input id="shipContact" placeholder="Phone / Email" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== Export Details ========== -->
+    <div class="card">
+      <h2>Export Details</h2>
+
+      <div class="grid grid-3">
+        <div>
+          <label>Port of Loading</label>
+          <input id="portLoading" placeholder="Port of Loading" />
+        </div>
+
+        <div>
+          <label>Port of Discharge</label>
+          <input id="portDischarge" placeholder="Port of Discharge" />
+        </div>
+
+        <div>
+          <label>Final Destination</label>
+          <input id="finalDestination" placeholder="Final Destination" />
+        </div>
+
+        <div>
+          <label>Shipment Mode</label>
+          <input id="shipmentMode" placeholder="SEA / AIR / ROAD" />
+        </div>
+
+        <div>
+          <label>Country of Origin</label>
+          <input id="countryOrigin" value="India" />
+        </div>
+
+        <div>
+          <label>Default HS Code</label>
+          <input id="defaultHs" placeholder="HS Code (optional)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== GST ========== -->
+    <div class="card">
+      <h2>GST</h2>
+
+      <div class="grid grid-4">
+        <div>
           <label>GST Type</label>
           <select id="gstType">
             <option value="IGST">IGST</option>
-            <option value="CGST_SGST">CGST + SGST</option>
-            <option value="NONE">No GST (Export LUT)</option>
+            <option value="CGST_SGST">CGST+SGST</option>
+            <option value="NONE">NONE / LUT</option>
           </select>
         </div>
 
@@ -104,243 +274,128 @@
           <label>SGST %</label>
           <input id="sgstRate" type="number" step="0.01" value="0" />
         </div>
-
-        <div>
-          <label>Extra Tax (optional)</label>
-          <input id="extraTax" type="number" step="0.01" value="0" />
-        </div>
       </div>
-    </section>
+    </div>
 
-    <!-- Seller -->
-    <section class="card">
-      <h2>Seller (Your Company)</h2>
-      <div class="grid">
-        <div>
-          <label>Company Name</label>
-          <input id="sellerName" placeholder="Your Company Name" />
-        </div>
-
-        <div>
-          <label>Address</label>
-          <input id="sellerAddress" placeholder="Full Address" />
-        </div>
-
-        <div>
-          <label>GST / VAT</label>
-          <input id="sellerTax" placeholder="GSTIN / VAT No." />
-        </div>
-
-        <div>
-          <label>PAN</label>
-          <input id="sellerPan" placeholder="PAN" />
-        </div>
-
-        <div>
-          <label>IEC (Export Code)</label>
-          <input id="sellerIec" placeholder="IEC" />
-        </div>
-
-        <div>
-          <label>Email / Phone</label>
-          <input id="sellerContact" placeholder="email / phone" />
-        </div>
-      </div>
-    </section>
-
-    <!-- Buyer -->
-    <section class="card">
-      <h2>Buyer</h2>
-      <div class="grid">
-        <div>
-          <label>Buyer Name</label>
-          <input id="buyerName" placeholder="Client / Buyer Name" />
-        </div>
-
-        <div>
-          <label>Buyer Address</label>
-          <input id="buyerAddress" placeholder="Buyer Address" />
-        </div>
-
-        <div>
-          <label>Buyer Country</label>
-          <input id="buyerCountry" placeholder="Country" />
-        </div>
-
-        <div>
-          <label>Buyer Tax ID (GST/VAT)</label>
-          <input id="buyerTax" placeholder="GST/VAT No (if any)" />
-        </div>
-
-        <div>
-          <label>Buyer Email / Phone</label>
-          <input id="buyerContact" placeholder="email / phone" />
-        </div>
-      </div>
-    </section>
-
-    <!-- Export Details -->
-    <section class="card">
-      <h2>Export Details</h2>
-      <div class="grid">
-        <div>
-          <label>Port of Loading</label>
-          <input id="portLoading" placeholder="e.g., Nhava Sheva (JNPT)" />
-        </div>
-
-        <div>
-          <label>Port of Discharge</label>
-          <input id="portDischarge" placeholder="e.g., Jebel Ali" />
-        </div>
-
-        <div>
-          <label>Final Destination</label>
-          <input id="finalDestination" placeholder="City, Country" />
-        </div>
-
-        <div>
-          <label>Country of Origin</label>
-          <input id="countryOrigin" placeholder="India" value="India" />
-        </div>
-
-        <div>
-          <label>Mode of Shipment</label>
-          <select id="shipmentMode">
-            <option value="SEA">SEA</option>
-            <option value="AIR">AIR</option>
-            <option value="ROAD">ROAD</option>
-          </select>
-        </div>
-
-        <div>
-          <label>HS Code (Default)</label>
-          <input id="defaultHs" placeholder="e.g., 6802..." />
-        </div>
-
-        <div>
-          <label>Terms Basis</label>
-          <select id="termsBasis">
-            <option value="FOB">FOB</option>
-            <option value="CIF">CIF</option>
-            <option value="CFR">CFR</option>
-            <option value="EXW">EXW</option>
-          </select>
-        </div>
-
-        <div>
-          <label>Validity</label>
-          <input id="validity" placeholder="e.g., 7 days" />
-        </div>
-      </div>
-    </section>
-
-    <!-- Items -->
-    <section class="card">
+    <!-- ========== Items ========== -->
+    <div class="card">
       <h2>Items</h2>
 
-      <div class="tableWrap">
-        <table id="itemsTable">
+      <div class="table-wrap">
+        <table class="table">
           <thead>
             <tr>
-              <th style="width:35%">Description</th>
-              <th style="width:12%">HSN/HS Code</th>
-              <th style="width:10%">Qty</th>
-              <th style="width:10%">Unit</th>
-              <th style="width:13%">Rate</th>
-              <th style="width:13%">Amount</th>
-              <th style="width:7%"></th>
+              <th>Description</th>
+              <th>HS Code</th>
+              <th>Qty</th>
+              <th>Unit</th>
+              <th>Rate</th>
+              <th>Amount</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="itemsBody"></tbody>
         </table>
       </div>
 
-      <div class="totals">
-        <div class="totalsRow">
-          <span>Items Subtotal</span>
-          <strong id="itemsSubtotal">0.00</strong>
-        </div>
+      <div class="hint">Tip: HS Code blank ho to Default HS Code auto PDF me use hoga.</div>
+    </div>
 
-        <div class="totalsRow">
-          <span>Discount</span>
-          <input id="discount" type="number" step="0.01" value="0" />
-        </div>
+    <!-- ========== Charges & Totals ========== -->
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Export Charges</h2>
 
-        <div class="totalsRow">
-          <span>Taxable Base</span>
-          <strong id="taxableBase">0.00</strong>
-        </div>
+        <div class="grid grid-2">
+          <div>
+            <label>Packing</label>
+            <input id="packingCharges" type="number" step="0.01" value="0" />
+          </div>
 
-        <div class="totalsRow">
-          <span>GST Total</span>
-          <strong id="gstTotal">0.00</strong>
-        </div>
+          <div>
+            <label>Freight</label>
+            <input id="freightCharges" type="number" step="0.01" value="0" />
+          </div>
 
-        <div class="totalsRow">
-          <span>Extra Tax</span>
-          <strong id="extraTaxView">0.00</strong>
-        </div>
+          <div>
+            <label>Insurance</label>
+            <input id="insuranceCharges" type="number" step="0.01" value="0" />
+          </div>
 
-        <div class="totalsRow grand">
-          <span>Grand Total</span>
-          <strong id="grandTotal">0.00</strong>
-        </div>
-      </div>
-    </section>
+          <div>
+            <label>Other</label>
+            <input id="otherCharges" type="number" step="0.01" value="0" />
+          </div>
 
-    <!-- Export Charges -->
-    <section class="card">
-      <h2>Export Charges (FOB/CIF)</h2>
-      <div class="grid">
-        <div>
-          <label>Packing Charges</label>
-          <input id="packingCharges" type="number" step="0.01" value="0" />
-        </div>
-
-        <div>
-          <label>Freight</label>
-          <input id="freightCharges" type="number" step="0.01" value="0" />
-        </div>
-
-        <div>
-          <label>Insurance</label>
-          <input id="insuranceCharges" type="number" step="0.01" value="0" />
-        </div>
-
-        <div>
-          <label>Other Charges</label>
-          <input id="otherCharges" type="number" step="0.01" value="0" />
-        </div>
-
-        <div>
-          <label>Total Export Charges</label>
-          <input id="exportChargesTotal" type="number" step="0.01" value="0" readonly />
+          <div class="span-2">
+            <label>Total Export Charges (auto)</label>
+            <input id="exportChargesTotal" type="number" step="0.01" value="0" readonly />
+          </div>
         </div>
       </div>
-    </section>
 
-    <!-- Bank / Notes -->
-    <section class="card">
-      <h2>Bank / Notes</h2>
-      <div class="grid">
-        <div>
-          <label>Bank Details (SWIFT/IBAN supported)</label>
-          <textarea id="bankDetails" rows="4" placeholder="Bank Name, A/C No, IFSC/SWIFT, IBAN, Branch..."></textarea>
+      <div class="card">
+        <h2>Totals</h2>
+
+        <div class="grid grid-2">
+          <div>
+            <label>Discount</label>
+            <input id="discount" type="number" step="0.01" value="0" />
+          </div>
+
+          <div>
+            <label>Extra Tax</label>
+            <input id="extraTax" type="number" step="0.01" value="0" />
+          </div>
         </div>
 
-        <div>
-          <label>Notes</label>
-          <textarea id="notes" rows="4" placeholder="Delivery terms, LUT text, validity, etc."></textarea>
+        <div class="totals">
+          <div class="totals-row">
+            <span>Items Subtotal</span>
+            <b><span id="itemsSubtotal">0.00</span></b>
+          </div>
+          <div class="totals-row">
+            <span>Taxable Base</span>
+            <b><span id="taxableBase">0.00</span></b>
+          </div>
+          <div class="totals-row">
+            <span>GST Total</span>
+            <b><span id="gstTotal">0.00</span></b>
+          </div>
+          <div class="totals-row">
+            <span>Extra Tax</span>
+            <b><span id="extraTaxView">0.00</span></b>
+          </div>
+          <div class="totals-row grand">
+            <span>GRAND TOTAL</span>
+            <b><span id="grandTotal">0.00</span></b>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
 
-    <footer class="footer">
-      <small>Free hosting: GitHub Pages ✅</small>
-    </footer>
-  </main>
+    <!-- ========== Bank / Notes ========== -->
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Bank Details</h2>
+        <textarea id="bankDetails" placeholder="Bank Name, A/C, IFSC/SWIFT, Beneficiary, etc."></textarea>
+      </div>
 
+      <div class="card">
+        <h2>Notes</h2>
+        <textarea id="notes" placeholder="Terms & conditions / Remarks"></textarea>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div>Saved locally in your browser (Refresh pe data nahi hatega)</div>
+    </div>
+  </div>
+
+  <!-- Fonts (optional) -->
+  <script src="fonts.js"></script>
+
+  <!-- App -->
   <script src="app.js"></script>
 </body>
 </html>
-
