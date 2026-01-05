@@ -215,7 +215,7 @@ input:focus, select:focus, textarea:focus{
   .span-2{ grid-column: span 1; }
 }
 
-/* Print */
+/* Print (webpage print hidden; we print PDF via jsPDF) */
 @media print{
   .topbar, .footer, button { display:none !important; }
   body{ background:#fff; }
