@@ -7,10 +7,9 @@
 
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- jsPDF + AutoTable (CDN) -->
+  <!-- jsPDF + AutoTable -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.3/dist/jspdf.plugin.autotable.min.js"></script>
-
 </head>
 
 <body>
@@ -31,20 +30,19 @@
       </div>
     </div>
 
-    <!-- ========== Branding ========== -->
+    <!-- Branding -->
     <div class="card">
       <h2>Branding</h2>
-
       <div class="grid grid-2">
         <div>
           <label>Upload Logo (PNG/JPG)</label>
           <input id="logoInput" type="file" accept="image/png,image/jpeg" />
-          <div class="hint">Logo PDF top-left (Recommended: PNG with white background)</div>
+          <div class="hint">Logo PDF top-left. Size fixed in PDF: 5.77 cm × 0.85 cm</div>
         </div>
       </div>
     </div>
 
-    <!-- ========== Document ========== -->
+    <!-- Document -->
     <div class="card">
       <h2>Document</h2>
 
@@ -101,7 +99,7 @@
       </div>
     </div>
 
-    <!-- ========== Parties ========== -->
+    <!-- Seller -->
     <div class="card">
       <h2>Seller (Your Company)</h2>
 
@@ -143,10 +141,10 @@
       </div>
     </div>
 
+    <!-- Customer + Ship To -->
     <div class="grid grid-2">
-      <!-- CUSTOMER -->
       <div class="card">
-        <h2>Customer</h2>
+        <h2>Customer (Billing)</h2>
 
         <div class="grid grid-2">
           <div>
@@ -176,7 +174,6 @@
         </div>
       </div>
 
-      <!-- SHIP TO -->
       <div class="card">
         <h2>Ship To</h2>
 
@@ -209,7 +206,7 @@
       </div>
     </div>
 
-    <!-- ========== Export Details ========== -->
+    <!-- Export Details -->
     <div class="card">
       <h2>Export Details</h2>
 
@@ -246,7 +243,7 @@
       </div>
     </div>
 
-    <!-- ========== GST ========== -->
+    <!-- GST -->
     <div class="card">
       <h2>GST</h2>
 
@@ -277,7 +274,7 @@
       </div>
     </div>
 
-    <!-- ========== Items ========== -->
+    <!-- Items -->
     <div class="card">
       <h2>Items</h2>
 
@@ -301,7 +298,7 @@
       <div class="hint">Tip: HS Code blank ho to Default HS Code auto PDF me use hoga.</div>
     </div>
 
-    <!-- ========== Charges & Totals ========== -->
+    <!-- Charges & Totals -->
     <div class="grid grid-2">
       <div class="card">
         <h2>Export Charges</h2>
@@ -374,7 +371,7 @@
       </div>
     </div>
 
-    <!-- ========== Bank / Notes ========== -->
+    <!-- Bank / Notes -->
     <div class="grid grid-2">
       <div class="card">
         <h2>Bank Details</h2>
@@ -388,11 +385,12 @@
     </div>
 
     <div class="footer">
-      <div>Saved locally in your browser (Refresh pe data nahi hatega)</div>
+      <div>Saved locally in your browser (Refresh pe data blank nahi hoga)</div>
     </div>
+
   </div>
 
-  <!-- Fonts (optional) -->
+  <!-- Fonts (generated from your ZIPs) -->
   <script src="fonts.js"></script>
 
   <!-- App -->
