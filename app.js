@@ -1,9 +1,3 @@
-// =====================
-// FINAL UPDATED app.js (WITH CUSTOM FONTS SUPPORT)
-// Fonts: ITC Avant Garde Gothic (headings) + TT Fors (body)
-// Requires: fonts.js with base64 strings in window.__FONTS__
-// =====================
-
 let logoDataUrl = "";
 const STORAGE_KEY = "invoice_site_v2";
 
@@ -87,6 +81,7 @@ function numberToWordsIndian(n){
 function amountInWords(total,currencyCode){
   const whole=Math.floor(total);
   const frac=Math.round((total-whole)*100);
+
   let major="Dollars", minor="Cents";
   const c=(currencyCode||"").toUpperCase();
   if(c==="INR"){ major="Rupees"; minor="Paise"; }
@@ -401,34 +396,42 @@ document.addEventListener("input",(e)=>{
   }
 })();
 
-// ---------- Custom Fonts register ----------
+// ---------- Custom Fonts register (from fonts.js) ----------
 function registerCustomFonts(doc){
-  // Fonts must be provided via fonts.js -> window.__FONTS__
-  // Base64 must be raw base64 (no data: prefix)
   try{
     const f = window.__FONTS__ || {};
-    if(f.ITCAvant){
-      doc.addFileToVFS("ITCAvant.ttf", f.ITCAvant);
-      doc.addFont("ITCAvant.ttf", "ITCAvant", "normal");
-      doc.addFont("ITCAvant.ttf", "ITCAvant", "bold");
+
+    // ITC Avant (Normal/Bold)
+    if (f.ITCAvantNormal) {
+      doc.addFileToVFS("ITCAvant-Normal.otf", f.ITCAvantNormal);
+      doc.addFont("ITCAvant-Normal.otf", "ITCAvant", "normal");
     }
-    if(f.TTFors){
-      doc.addFileToVFS("TTFors.ttf", f.TTFors);
-      doc.addFont("TTFors.ttf", "TTFors", "normal");
-      doc.addFont("TTFors.ttf", "TTFors", "bold");
+    if (f.ITCAvantBold) {
+      doc.addFileToVFS("ITCAvant-Bold.otf", f.ITCAvantBold);
+      doc.addFont("ITCAvant-Bold.otf", "ITCAvant", "bold");
     }
-  }catch(e){
-    console.warn("Font load failed, using default.", e);
+
+    // TT Fors (Normal/Bold)
+    if (f.TTForsNormal) {
+      doc.addFileToVFS("TTFors-Normal.ttf", f.TTForsNormal);
+      doc.addFont("TTFors-Normal.ttf", "TTFors", "normal");
+    }
+    if (f.TTForsBold) {
+      doc.addFileToVFS("TTFors-Bold.ttf", f.TTForsBold);
+      doc.addFont("TTFors-Bold.ttf", "TTFors", "bold");
+    }
+  } catch (e) {
+    console.warn("Font load failed, using default fonts.", e);
   }
 }
 
-// Helpers to set fonts safely (fallback if missing)
 function setHeadingFont(doc, style="bold"){
-  try{ doc.setFont("ITCAvant", style); }
+  try { doc.setFont("ITCAvant", style); }
   catch(e){ doc.setFont(undefined, style); }
 }
+
 function setBodyFont(doc, style="normal"){
-  try{ doc.setFont("TTFors", style); }
+  try { doc.setFont("TTFors", style); }
   catch(e){ doc.setFont(undefined, style); }
 }
 
@@ -437,7 +440,6 @@ function buildPdf(returnDocOnly=false){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:"pt", format:"a4" });
 
-  // Register fonts once per document
   registerCustomFonts(doc);
 
   const pageW = doc.internal.pageSize.getWidth();
@@ -453,7 +455,7 @@ function buildPdf(returnDocOnly=false){
   doc.setFillColor(245,245,250);
   doc.rect(0,0,pageW,100,"F");
 
-  // Logo size: 5.77cm x 0.85cm
+  // Logo fixed size
   const logoW = cmToPt(5.77);
   const logoH = cmToPt(0.85);
   const logoX = margin;
@@ -464,7 +466,7 @@ function buildPdf(returnDocOnly=false){
     catch(e){ try{ doc.addImage(logoDataUrl, "JPEG", logoX, logoY, logoW, logoH);}catch(_){} }
   }
 
-  // Title RIGHT (Heading font)
+  // Title right
   doc.setTextColor(20);
   setHeadingFont(doc, "bold");
   doc.setFontSize(16);
@@ -493,7 +495,7 @@ function buildPdf(returnDocOnly=false){
   doc.text(`Payment Terms: ${safeText(paymentTerms)}`, margin, 130);
   doc.text(`Incoterms: ${safeText(incoterms)} | Terms Basis: ${safeText(termsBasis)}`, margin, 146);
 
-  // SELLER upar (FULL WIDTH)
+  // SELLER full width (top)
   const startY = 165;
   const sellerBoxH = 85;
 
@@ -519,7 +521,7 @@ function buildPdf(returnDocOnly=false){
 
   doc.text(sellerText, margin + 12, startY + 40, { maxWidth: pageW - margin * 2 - 24 });
 
-  // CUSTOMER | SHIP TO niche
+  // CUSTOMER | SHIP TO below
   const rowY = startY + sellerBoxH + 12;
   const gap = 14;
   const boxH = 120;
@@ -567,7 +569,7 @@ function buildPdf(returnDocOnly=false){
 
   doc.text(shipText, shipX + 12, rowY + 36, { maxWidth: boxW - 24 });
 
-  // EXPORT & GST DETAILS (full width)
+  // Export & GST details full width
   const exY = rowY + boxH + 16;
   drawBox(doc, margin, exY, pageW - margin*2, 82);
 
@@ -649,15 +651,18 @@ function buildPdf(returnDocOnly=false){
   doc.text(`Total: ${currency} ${money(toNum(exportChargesTotalEl.value))}`, leftX+12, y+106);
 
   drawBox(doc, rightX, y, dualW, 120);
-
   setBodyFont(doc, "normal");
   doc.setFontSize(10);
+
   doc.text("Items Subtotal", rightX+12, y+28);
   doc.text(`${currency} ${itemsSubtotal}`, rightEdge, y+28, {align:"right"});
+
   doc.text("Taxable Base", rightX+12, y+48);
   doc.text(`${currency} ${taxableBase}`, rightEdge, y+48, {align:"right"});
+
   doc.text("GST Total", rightX+12, y+68);
   doc.text(`${currency} ${gstTotal}`, rightEdge, y+68, {align:"right"});
+
   doc.text("Extra Tax", rightX+12, y+88);
   doc.text(`${currency} ${extraTax}`, rightEdge, y+88, {align:"right"});
 
@@ -682,7 +687,6 @@ function buildPdf(returnDocOnly=false){
   if (bnY > pageH - 220) { doc.addPage(); bnY = 60; }
 
   drawBox(doc, margin, bnY, pageW - margin*2, 90);
-
   setHeadingFont(doc, "bold");
   doc.setFontSize(10);
   doc.text("BANK DETAILS", margin+12, bnY+18);
@@ -694,7 +698,6 @@ function buildPdf(returnDocOnly=false){
   });
 
   drawBox(doc, margin, bnY+100, pageW - margin*2, 80);
-
   setHeadingFont(doc, "bold");
   doc.setFontSize(10);
   doc.text("NOTES", margin+12, bnY+118);
